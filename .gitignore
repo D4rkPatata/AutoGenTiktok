@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.conda/
+.vscode/
+data/jobs/
+*.log
+tools/
+data/logo/*.mp4
+data/music_presets/*
+!data/music_presets/.gitkeep

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GenVideosAuto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+
+    <main class="container">
+      <header class="hero">
+        <p class="eyebrow">MVP Local</p>
+        <h1>Generador Automático de Videos Tipo TikTok</h1>
+        <p>
+          Sube clips, agrega música y genera múltiples versiones verticales en MP4 con caption automático.
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>1. Subida de videos</h2>
+        <p>Hasta 10 clips en MP4/MOV.</p>
+        <input id="clips" type="file" accept="video/mp4,video/quicktime,.mov" multiple />
+        <ul id="clipList" class="file-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>2. Música</h2>
+        <div class="grid-2">
+          <div>
+            <label for="musicPreset">Elegir preset</label>
+            <select id="musicPreset">
+              <option value="">Sin preset</option>
+            </select>
+          </div>
+          <div>
+            <label for="musicFile">O subir música (MP3/WAV/M4A/AAC)</label>
+            <input id="musicFile" type="file" accept="audio/*" />
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3. Configuración</h2>
+        <div class="grid-2">
+          <div>
+            <label for="versions">Cantidad de versiones</label>
+            <input id="versions" type="number" min="1" max="10" value="3" />
+          </div>
+          <div>
+            <label for="style">Estilo</label>
+            <select id="style">
+              <option value="clean_fast">Clean Fast</option>
+              <option value="aggressive">Aggressive</option>
+              <option value="smooth">Smooth</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>4. Contexto</h2>
+        <p>Describe rapidamente de que trata el video para guiar caption y textos en pantalla.</p>
+        <div class="prompt-wrap">
+          <label for="promptContext">Contexto del video (guia para caption y textos en pantalla)</label>
+          <textarea
+            id="promptContext"
+            rows="3"
+            placeholder="Ejemplo: video sobre tips de productividad para creadores, tono motivador y cierre con CTA"
+          ></textarea>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button id="generateBtn">5. Generar videos</button>
+        <p id="statusText"></p>
+      </section>
+
+      <section class="card" id="resultsSection">
+        <h2>6. Resultados</h2>
+        <div id="results" class="results"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
