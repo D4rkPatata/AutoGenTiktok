@@ -48,6 +48,36 @@ STYLE_PROFILES: dict[str, StyleProfile] = {
     ),
 }
 
+FONT_CANDIDATE_FILES: dict[str, list[Path]] = {
+    "Lobster": [Path("data/fonts/Lobster.ttf"), Path("data/fonts/Lobster-Bold.ttf"), Path("C:/Windows/Fonts/Lobster-Regular.ttf")],
+    "Lobster-Bold": [Path("data/fonts/Lobster-Bold.ttf"), Path("data/fonts/Lobster.ttf"), Path("C:/Windows/Fonts/Lobster-Regular.ttf")],
+    "Baloo": [Path("data/fonts/Baloo.ttf"), Path("data/fonts/Baloo-Bold.ttf"), Path("C:/Windows/Fonts/Baloo2-Regular.ttf"), Path("C:/Windows/Fonts/Baloo-Regular.ttf")],
+    "Baloo-Bold": [Path("data/fonts/Baloo-Bold.ttf"), Path("data/fonts/Baloo.ttf"), Path("C:/Windows/Fonts/Baloo2-Regular.ttf"), Path("C:/Windows/Fonts/Baloo-Regular.ttf")],
+    "Fredoka": [Path("data/fonts/Fredoka.ttf"), Path("data/fonts/Fredoka-Bold.ttf"), Path("C:/Windows/Fonts/Fredoka-Regular.ttf")],
+    "Fredoka-Bold": [Path("data/fonts/Fredoka-Bold.ttf"), Path("data/fonts/Fredoka.ttf"), Path("C:/Windows/Fonts/Fredoka-Regular.ttf")],
+    "Bangers": [Path("data/fonts/Bangers.ttf"), Path("data/fonts/Bangers-Bold.ttf"), Path("C:/Windows/Fonts/Bangers-Regular.ttf")],
+    "Bangers-Bold": [Path("data/fonts/Bangers-Bold.ttf"), Path("data/fonts/Bangers.ttf"), Path("C:/Windows/Fonts/Bangers-Regular.ttf")],
+    "Luckiest Guy": [Path("data/fonts/LuckiestGuy.ttf"), Path("data/fonts/LuckiestGuy-Bold.ttf"), Path("C:/Windows/Fonts/LuckiestGuy-Regular.ttf")],
+    "Luckiest Guy-Bold": [Path("data/fonts/LuckiestGuy-Bold.ttf"), Path("data/fonts/LuckiestGuy.ttf"), Path("C:/Windows/Fonts/LuckiestGuy-Regular.ttf")],
+    "Anton": [Path("data/fonts/Anton.ttf"), Path("data/fonts/Anton-Bold.ttf"), Path("C:/Windows/Fonts/Anton-Regular.ttf")],
+    "Anton-Bold": [Path("data/fonts/Anton-Bold.ttf"), Path("data/fonts/Anton.ttf"), Path("C:/Windows/Fonts/Anton-Regular.ttf")],
+    "Montserrat": [Path("data/fonts/Montserrat.ttf"), Path("data/fonts/Montserrat-Bold.ttf"), Path("C:/Windows/Fonts/Montserrat-Regular.ttf")],
+    "Montserrat-Bold": [Path("data/fonts/Montserrat-Bold.ttf"), Path("data/fonts/Montserrat.ttf"), Path("C:/Windows/Fonts/Montserrat-Regular.ttf")],
+    "Oswald": [Path("data/fonts/Oswald.ttf"), Path("data/fonts/Oswald-Bold.ttf"), Path("C:/Windows/Fonts/Oswald-Regular.ttf")],
+    "Oswald-Bold": [Path("data/fonts/Oswald-Bold.ttf"), Path("data/fonts/Oswald.ttf"), Path("C:/Windows/Fonts/Oswald-Regular.ttf")],
+    "Poppins": [Path("data/fonts/Poppins.ttf"), Path("data/fonts/Poppins-Bold.ttf"), Path("C:/Windows/Fonts/Poppins-Regular.ttf")],
+    "Poppins-Bold": [Path("data/fonts/Poppins-Bold.ttf"), Path("data/fonts/Poppins.ttf"), Path("C:/Windows/Fonts/Poppins-Regular.ttf")],
+    "Inter": [Path("data/fonts/Inter.ttf"), Path("data/fonts/Inter-Bold.ttf"), Path("C:/Windows/Fonts/Inter-Regular.ttf")],
+    "Inter-Bold": [Path("data/fonts/Inter-Bold.ttf"), Path("data/fonts/Inter.ttf"), Path("C:/Windows/Fonts/Inter-Regular.ttf")],
+    "Nunito": [Path("data/fonts/Nunito.ttf"), Path("data/fonts/Nunito-Bold.ttf"), Path("C:/Windows/Fonts/Nunito-Regular.ttf")],
+    "Nunito-Bold": [Path("data/fonts/Nunito-Bold.ttf"), Path("data/fonts/Nunito.ttf"), Path("C:/Windows/Fonts/Nunito-Regular.ttf")],
+}
+
+FALLBACK_FONT_FILES = [
+    Path("C:/Windows/Fonts/arial.ttf"),
+    Path("C:/Windows/Fonts/segoeui.ttf"),
+]
+
 
 @dataclass
 class Segment:
@@ -345,15 +375,21 @@ def _compose_with_transitions(segment_paths: list[Path], durations: list[float],
     return max(total_duration, 1.0)
 
 
-def _mix_music(base_video: Path, music_file: Path, profile: StyleProfile, duration: float, out_path: Path) -> None:
+def _mix_music(
+    base_video: Path,
+    music_file: Path,
+    profile: StyleProfile,
+    duration: float,
+    ending_starts_at: float,
+    out_path: Path,
+) -> None:
     fade_out_start = max(duration - 1.2, 0.0)
+    ending_music_gain = 0.8
 
     filter_complex = (
         f"[0:a]atrim=0:{duration:.3f},asetpts=N/SR/TB,volume={profile.music_volume:.2f},"
-        f"afade=t=in:st=0:d=0.8,afade=t=out:st={fade_out_start:.3f}:d=1.2[m];"
-        "[1:a]volume=1.0[o];"
-        "[m][o]sidechaincompress=threshold=0.06:ratio=8:attack=20:release=250[duck];"
-        "[o][duck]amix=inputs=2:weights='1 0.9':normalize=0,alimiter=limit=0.96[a]"
+        f"volume='if(lt(t,{ending_starts_at:.3f}),1,{ending_music_gain:.2f})',"
+        f"afade=t=in:st=0:d=0.8,afade=t=out:st={fade_out_start:.3f}:d=1.2,alimiter=limit=0.96[a]"
     )
 
     cmd = [
@@ -397,6 +433,157 @@ def _escape_drawtext(text: str) -> str:
     return escaped
 
 
+def _resolve_font_path(font_name: str) -> Path | None:
+    for candidate in FONT_CANDIDATE_FILES.get(font_name, []):
+        if candidate.exists():
+            return candidate
+    for fallback in FALLBACK_FONT_FILES:
+        if fallback.exists():
+            return fallback
+    return None
+
+
+def _build_drawtext(
+    text: str,
+    start: float,
+    end: float,
+    font_size: int,
+    y_expr: str,
+    box_color: str,
+    box_border: int,
+    font_name: str,
+    is_bold: bool,
+    use_box: bool = True,
+    alpha_expr: str | None = None,
+) -> str:
+    # Force uppercase for all overlays.
+    safe_text = _escape_drawtext((text or "").upper())
+    safe_font_name = _escape_drawtext(font_name)
+    font_path = _resolve_font_path(font_name)
+
+    font_opt = f"font='{safe_font_name}'"
+    if font_path is not None:
+        font_opt = f"fontfile='{_escape_drawtext(font_path.as_posix())}'"
+
+    enable_expr = f"between(t,{start:.2f},{end:.2f})"
+    box_flag = 0
+    border_width = "2.2" if is_bold else "0.0"
+    alpha_clause = ""
+    if alpha_expr:
+        alpha_clause = f"alpha='{alpha_expr}':"
+
+    return (
+        "drawtext="
+        f"{font_opt}:text='{safe_text}':"
+        f"fontsize={font_size}:"
+        "fontcolor=white:line_spacing=8:"
+        "x=(w-text_w)/2:"
+        f"y={y_expr}:"
+        f"borderw={border_width}:bordercolor=black@0.90:"
+        f"{alpha_clause}"
+        f"box={box_flag}:boxcolor={box_color}:boxborderw={box_border}:"
+        f"enable='{enable_expr}'"
+    )
+
+
+def _build_effect_layers(
+    text: str,
+    start: float,
+    end: float,
+    font_size: int,
+    y_base: str,
+    box_color: str,
+    box_border: int,
+    font_name: str,
+    effect: str,
+    overlay_bold: bool,
+) -> list[str]:
+    intro_end = min(start + 0.55, end)
+    layers: list[str] = []
+
+    if effect == "fade":
+        fade_alpha = f"if(lt(t,{start:.3f}),0,if(lt(t,{intro_end:.3f}),(t-{start:.3f})/{max(intro_end-start,0.01):.3f},1))"
+        layers.append(
+            _build_drawtext(
+                text=text,
+                start=start,
+                end=end,
+                font_size=font_size,
+                y_expr=y_base,
+                box_color=box_color,
+                box_border=box_border,
+                font_name=font_name,
+                is_bold=overlay_bold,
+                use_box=True,
+                alpha_expr=fade_alpha,
+            )
+        )
+        return layers
+
+    if effect == "pop":
+        pop_in_end = min(start + 0.16, end)
+        settle_end = min(start + 0.36, end)
+        layers.append(
+            _build_drawtext(
+                text=text,
+                start=start,
+                end=pop_in_end,
+                font_size=int(font_size * 1.34),
+                y_expr=y_base,
+                box_color=box_color,
+                box_border=box_border,
+                font_name=font_name,
+                is_bold=overlay_bold,
+                use_box=False,
+            )
+        )
+        layers.append(
+            _build_drawtext(
+                text=text,
+                start=pop_in_end,
+                end=settle_end,
+                font_size=font_size,
+                y_expr=y_base,
+                box_color=box_color,
+                box_border=box_border,
+                font_name=font_name,
+                is_bold=overlay_bold,
+                use_box=True,
+            )
+        )
+        if settle_end < end:
+            layers.append(
+                _build_drawtext(
+                    text=text,
+                    start=settle_end,
+                    end=end,
+                    font_size=font_size,
+                    y_expr=y_base,
+                    box_color=box_color,
+                    box_border=box_border,
+                    font_name=font_name,
+                    is_bold=overlay_bold,
+                    use_box=True,
+                )
+            )
+        return layers
+
+    # rebote
+    b1 = min(start + 0.12, end)
+    b2 = min(start + 0.24, end)
+    b3 = min(start + 0.38, end)
+    layers.extend(
+        [
+            _build_drawtext(text, start, b1, font_size, f"({y_base})-170", box_color, box_border, font_name, overlay_bold, False),
+            _build_drawtext(text, b1, b2, font_size, f"({y_base})+55", box_color, box_border, font_name, overlay_bold, False),
+            _build_drawtext(text, b2, b3, font_size, f"({y_base})-20", box_color, box_border, font_name, overlay_bold, True),
+        ]
+    )
+    if b3 < end:
+        layers.append(_build_drawtext(text, b3, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, True))
+    return layers
+
+
 def _apply_text_overlays(
     in_path: Path,
     out_path: Path,
@@ -404,41 +591,50 @@ def _apply_text_overlays(
     output_fps: float,
     overlay_text_1: str,
     overlay_text_2: str,
+    overlay_font: str,
+    overlay_effect: str,
+    overlay_bold: bool,
 ) -> None:
-    text_1 = _escape_drawtext(overlay_text_1)
-    text_2 = _escape_drawtext(overlay_text_2)
+    text_1 = (overlay_text_1 or "").strip()
+    text_2 = (overlay_text_2 or "").strip()
 
     if not text_1 and not text_2:
         shutil.copy(in_path, out_path)
         return
 
     d = max(duration, 1.0)
-    first_start = min(max(0.35, d * 0.08), max(0.35, d - 0.9))
-    first_end = min(d * 0.34, first_start + 3.2)
-    second_end = max(d - 0.35, d * 0.98)
-    second_start = max(second_end - 3.0, d * 0.62)
+    first_start = min(1.0, max(0.0, d - 0.2))
+    first_end = min(7.0, max(first_start + 0.4, d - 1.2))
 
-    first_enable = f"between(t,{first_start:.2f},{first_end:.2f})"
-    second_enable = f"between(t,{second_start:.2f},{second_end:.2f})"
+    second_start = min(8.0, max(first_end + 0.2, d - 1.1))
+    second_end = max(second_start + 0.25, d - 1.0)
 
-    draw_1 = (
-        "drawtext="
-        f"font='Arial':text='{text_1}':"
-        "fontsize=60:fontcolor=white:line_spacing=8:"
-        "x=(w-text_w)/2:y=h*0.14:"
-        "box=1:boxcolor=black@0.42:boxborderw=18:"
-        f"enable='{first_enable}'"
+    draw_1_layers = _build_effect_layers(
+        text=text_1,
+        start=first_start,
+        end=first_end,
+        font_size=75,
+        y_base="h*0.14",
+        box_color="black@0.42",
+        box_border=18,
+        font_name=overlay_font,
+        effect=overlay_effect,
+        overlay_bold=overlay_bold,
     )
-    draw_2 = (
-        "drawtext="
-        f"font='Arial':text='{text_2}':"
-        "fontsize=56:fontcolor=white:line_spacing=8:"
-        "x=(w-text_w)/2:y=h*0.79:"
-        "box=1:boxcolor=black@0.36:boxborderw=16:"
-        f"enable='{second_enable}'"
+    draw_2_layers = _build_effect_layers(
+        text=text_2,
+        start=second_start,
+        end=second_end,
+        font_size=71,
+        y_base="h*0.79",
+        box_color="black@0.36",
+        box_border=16,
+        font_name=overlay_font,
+        effect=overlay_effect,
+        overlay_bold=overlay_bold,
     )
 
-    filter_chain = f"{draw_1},{draw_2}"
+    filter_chain = ",".join(draw_1_layers + draw_2_layers)
 
     cmd = [
         settings.ffmpeg_bin,
@@ -585,6 +781,9 @@ def render_variant(
     analyses: dict[Path, ClipAnalysis] | None = None,
     overlay_text_1: str = "",
     overlay_text_2: str = "",
+    overlay_font: str = "Inter",
+    overlay_effect: str = "fade",
+    overlay_bold: bool = True,
 ) -> dict:
     segments = build_variant_segments(clips, style, seed=variant_index * 7919, analyses=analyses)
     if not segments:
@@ -601,19 +800,17 @@ def render_variant(
     base_path = work_dir / f"v{variant_index}_base.mp4"
     final_duration = _compose_with_transitions(segment_paths, durations, style.transition, base_path)
 
-    if music_file is None:
-        shutil.copy(base_path, output_path)
-    else:
-        _mix_music(base_path, music_file, style, final_duration, output_path)
-
     overlayed = work_dir / f"v{variant_index}_overlayed.mp4"
     _apply_text_overlays(
-        in_path=output_path,
+        in_path=base_path,
         out_path=overlayed,
         duration=final_duration,
         output_fps=output_fps,
         overlay_text_1=overlay_text_1,
         overlay_text_2=overlay_text_2,
+        overlay_font=overlay_font,
+        overlay_effect=overlay_effect,
+        overlay_bold=overlay_bold,
     )
 
     faded_main = work_dir / f"v{variant_index}_faded_main.mp4"
@@ -626,14 +823,28 @@ def render_variant(
 
     ending_path = settings.ending_clip_path
     ending_duration = _validate_ending_clip(ending_path=ending_path, output_fps=output_fps)
+    concatenated = work_dir / f"v{variant_index}_with_ending.mp4"
     _concat_with_ending(
         main_faded=faded_main,
         ending_path=ending_path,
         output_fps=output_fps,
-        out_path=output_path,
+        out_path=concatenated,
     )
+
+    total_duration = final_duration + ending_duration
+    if music_file is None:
+        shutil.copy(concatenated, output_path)
+    else:
+        _mix_music(
+            base_video=concatenated,
+            music_file=music_file,
+            profile=style,
+            duration=total_duration,
+            ending_starts_at=final_duration,
+            out_path=output_path,
+        )
 
     return {
         "segments": len(segments),
-        "duration": round(final_duration + ending_duration, 2),
+        "duration": round(total_duration, 2),
     }

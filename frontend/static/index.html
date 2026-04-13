@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Baloo+2:wght@400;700&family=Bangers&family=Fredoka:wght@400;700&family=Inter:wght@400;700&family=Lobster&family=Luckiest+Guy&family=Manrope:wght@400;600&family=Montserrat:wght@400;700&family=Nunito:wght@400;700&family=Oswald:wght@400;700&family=Poppins:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -17,9 +17,8 @@
     <div class="bg-shape bg-shape-2"></div>
 
     <main class="container">
-      <header class="hero">
-        <p class="eyebrow">MVP Local</p>
-        <h1>Generador Automático de Videos Tipo TikTok</h1>
+      <header class="hero"> 
+        <h1>Generador Automático de Videos</h1>
         <p>
           Sube clips, agrega música y genera múltiples versiones verticales en MP4 con caption automático.
         </p>
@@ -67,7 +66,53 @@
       </section>
 
       <section class="card">
-        <h2>4. Contexto</h2>
+        <h2>4. Texto</h2>
+        <div class="style-config-grid">
+          <div class="style-controls">
+            <div class="multi-select" id="fontSelectRoot">
+              <label class="multi-select-label">Fuentes</label>
+              <div class="multi-select-trigger" id="fontTrigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">Haz clic para elegir</div>
+              <div class="multi-select-menu" id="fontMenu" hidden>
+                <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Seleccion de fuentes">
+                  <div class="menu-actions">
+                    <button type="button" id="fontSelectAll">Seleccionar todas</button>
+                    <button type="button" id="fontClear">Limpiar</button>
+                    <button type="button" id="fontClose">Cerrar</button>
+                  </div>
+                  <div class="menu-options" id="fontOptions"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="multi-select" id="effectSelectRoot">
+              <label class="multi-select-label">Efectos</label>
+              <div class="multi-select-trigger" id="effectTrigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">Haz clic para elegir</div>
+              <div class="multi-select-menu" id="effectMenu" hidden>
+                <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Seleccion de efectos">
+                  <div class="menu-actions">
+                    <button type="button" id="effectSelectAll">Seleccionar todas</button>
+                    <button type="button" id="effectClear">Limpiar</button>
+                    <button type="button" id="effectClose">Cerrar</button>
+                  </div>
+                  <div class="menu-options" id="effectOptions"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-card">
+            <p class="preview-title">Vista previa</p>
+            <p class="preview-caption">Asi se vera el texto principal</p>
+            <div class="preview-stage">
+              <p id="stylePreviewText">¡A LA VENTA!</p>
+            </div>
+          </div>
+        </div>
+        <p class="hint">Selecciona una o varias fuentes y efectos. Se aplicara una combinacion por video.</p>
+      </section>
+
+      <section class="card">
+        <h2>5. Contexto</h2>
         <p>Describe rapidamente de que trata el video para guiar caption y textos en pantalla.</p>
         <div class="prompt-wrap">
           <label for="promptContext">Contexto del video (guia para caption y textos en pantalla)</label>
@@ -80,16 +125,16 @@
       </section>
 
       <section class="actions">
-        <button id="generateBtn">5. Generar videos</button>
+        <button id="generateBtn">6. Generar videos</button>
         <p id="statusText"></p>
       </section>
 
       <section class="card" id="resultsSection">
-        <h2>6. Resultados</h2>
+        <h2>7. Resultados</h2>
         <div id="results" class="results"></div>
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
   </body>
 </html>

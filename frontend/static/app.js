@@ -9,6 +9,39 @@ const generateBtn = document.getElementById("generateBtn");
 const statusText = document.getElementById("statusText");
 const resultsEl = document.getElementById("results");
 
+const stylePreviewText = document.getElementById("stylePreviewText");
+
+const FONT_OPTIONS = [
+  { value: "Lobster", label: "Lobster", family: "'Lobster', cursive", weight: "500" },
+  { value: "Lobster-Bold", label: "Lobster-Bold", family: "'Lobster', cursive", weight: "800" },
+  { value: "Baloo", label: "Baloo", family: "'Baloo 2', cursive", weight: "500" },
+  { value: "Baloo-Bold", label: "Baloo-Bold", family: "'Baloo 2', cursive", weight: "800" },
+  { value: "Fredoka", label: "Fredoka", family: "'Fredoka', sans-serif", weight: "500" },
+  { value: "Fredoka-Bold", label: "Fredoka-Bold", family: "'Fredoka', sans-serif", weight: "800" },
+  { value: "Bangers", label: "Bangers", family: "'Bangers', cursive", weight: "500" },
+  { value: "Bangers-Bold", label: "Bangers-Bold", family: "'Bangers', cursive", weight: "800" },
+  { value: "Luckiest Guy", label: "Luckiest Guy", family: "'Luckiest Guy', cursive", weight: "500" },
+  { value: "Luckiest Guy-Bold", label: "Luckiest Guy-Bold", family: "'Luckiest Guy', cursive", weight: "800" },
+  { value: "Anton", label: "Anton", family: "'Anton', sans-serif", weight: "500" },
+  { value: "Anton-Bold", label: "Anton-Bold", family: "'Anton', sans-serif", weight: "800" },
+  { value: "Montserrat", label: "Montserrat", family: "'Montserrat', sans-serif", weight: "500" },
+  { value: "Montserrat-Bold", label: "Montserrat-Bold", family: "'Montserrat', sans-serif", weight: "800" },
+  { value: "Oswald", label: "Oswald", family: "'Oswald', sans-serif", weight: "500" },
+  { value: "Oswald-Bold", label: "Oswald-Bold", family: "'Oswald', sans-serif", weight: "800" },
+  { value: "Poppins", label: "Poppins", family: "'Poppins', sans-serif", weight: "500" },
+  { value: "Poppins-Bold", label: "Poppins-Bold", family: "'Poppins', sans-serif", weight: "800" },
+  { value: "Inter", label: "Inter", family: "'Inter', sans-serif", weight: "500" },
+  { value: "Inter-Bold", label: "Inter-Bold", family: "'Inter', sans-serif", weight: "800" },
+  { value: "Nunito", label: "Nunito", family: "'Nunito', sans-serif", weight: "500" },
+  { value: "Nunito-Bold", label: "Nunito-Bold", family: "'Nunito', sans-serif", weight: "800" },
+];
+
+const EFFECT_OPTIONS = [
+  { value: "rebote", label: "rebote" },
+  { value: "fade", label: "fade" },
+  { value: "pop", label: "pop" },
+];
+
 function setStatus(text) {
   statusText.textContent = text;
 }
@@ -21,6 +54,250 @@ function renderClipList(files) {
     clipList.appendChild(li);
   });
 }
+
+function summaryText(selectedCount, totalCount, firstLabel) {
+  if (selectedCount === 0) {
+    return "Selecciona estilos";
+  }
+  if (selectedCount === totalCount) {
+    return "Todas seleccionadas";
+  }
+  if (selectedCount === 1) {
+    return firstLabel;
+  }
+  return `${selectedCount} seleccionadas`;
+}
+
+function createMultiSelect({
+  rootId,
+  triggerId,
+  menuId,
+  optionsId,
+  selectAllId,
+  clearId,
+  closeId,
+  options,
+  useFontPreview = false,
+  onChange,
+}) {
+  const root = document.getElementById(rootId);
+  const trigger = document.getElementById(triggerId);
+  const menu = document.getElementById(menuId);
+  const optionsWrap = document.getElementById(optionsId);
+  const selectAllBtn = document.getElementById(selectAllId);
+  const clearBtn = document.getElementById(clearId);
+  const closeBtn = document.getElementById(closeId);
+  const label = root?.querySelector(".multi-select-label");
+
+  const selected = new Set();
+
+  function updateTrigger() {
+    const firstSelected = options.find((item) => selected.has(item.value));
+    trigger.textContent = summaryText(selected.size, options.length, firstSelected?.label || "Selecciona estilos");
+  }
+
+  function renderOptions() {
+    optionsWrap.innerHTML = "";
+    options.forEach((item) => {
+      const label = document.createElement("label");
+      label.className = "menu-option";
+
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = selected.has(item.value);
+      check.addEventListener("change", () => {
+        if (check.checked) {
+          selected.add(item.value);
+        } else {
+          selected.delete(item.value);
+        }
+        label.classList.toggle("selected", check.checked);
+        updateTrigger();
+        onChange(getSelectedValues());
+      });
+
+      const text = document.createElement("span");
+      text.className = "option-text";
+      text.textContent = item.label;
+      if (useFontPreview) {
+        text.style.fontFamily = item.family;
+        text.style.fontWeight = item.weight || "700";
+      }
+
+      label.classList.toggle("selected", check.checked);
+      label.appendChild(check);
+      label.appendChild(text);
+      optionsWrap.appendChild(label);
+    });
+  }
+
+  function getSelectedValues() {
+    return options.filter((item) => selected.has(item.value)).map((item) => item.value);
+  }
+
+  function openMenu() {
+    document.querySelectorAll(".multi-select-menu").forEach((otherMenu) => {
+      if (otherMenu !== menu) {
+        otherMenu.hidden = true;
+      }
+    });
+    document.querySelectorAll(".multi-select").forEach((otherRoot) => {
+      if (otherRoot !== root) {
+        otherRoot.classList.remove("open");
+      }
+    });
+    document.querySelectorAll(".multi-select-trigger").forEach((otherTrigger) => {
+      if (otherTrigger !== trigger) {
+        otherTrigger.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    menu.hidden = false;
+    root.classList.add("open");
+    trigger.setAttribute("aria-expanded", "true");
+    document.body.classList.add("modal-open");
+  }
+
+  function closeMenu() {
+    menu.hidden = true;
+    root.classList.remove("open");
+    trigger.setAttribute("aria-expanded", "false");
+    if (!document.querySelector(".multi-select.open")) {
+      document.body.classList.remove("modal-open");
+    }
+  }
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (menu.hidden) {
+      openMenu();
+    } else {
+      closeMenu();
+    }
+  });
+
+  trigger.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    if (menu.hidden) {
+      openMenu();
+    } else {
+      closeMenu();
+    }
+  });
+
+  if (label) {
+    label.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (menu.hidden) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    });
+  }
+
+  selectAllBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    options.forEach((item) => selected.add(item.value));
+    renderOptions();
+    updateTrigger();
+    onChange(getSelectedValues());
+  });
+
+  clearBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    selected.clear();
+    renderOptions();
+    updateTrigger();
+    onChange(getSelectedValues());
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeMenu();
+    });
+  }
+
+  menu.addEventListener("click", (event) => {
+    if (event.target === menu) {
+      closeMenu();
+      return;
+    }
+    event.stopPropagation();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!root.contains(event.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+    }
+  });
+
+  updateTrigger();
+  renderOptions();
+
+  return {
+    getSelectedValues,
+    setValues(values) {
+      selected.clear();
+      values.forEach((value) => selected.add(value));
+      renderOptions();
+      updateTrigger();
+      onChange(getSelectedValues());
+    },
+  };
+}
+
+let selectedFonts = [];
+let selectedEffects = [];
+
+function refreshPreview() {
+  const fallbackFamily = "'Space Grotesk', sans-serif";
+  const firstFont = FONT_OPTIONS.find((item) => item.value === selectedFonts[0]);
+  stylePreviewText.style.fontFamily = firstFont?.family || fallbackFamily;
+  stylePreviewText.style.fontWeight = firstFont?.weight || "800";
+}
+
+const fontSelect = createMultiSelect({
+  rootId: "fontSelectRoot",
+  triggerId: "fontTrigger",
+  menuId: "fontMenu",
+  optionsId: "fontOptions",
+  selectAllId: "fontSelectAll",
+  clearId: "fontClear",
+  closeId: "fontClose",
+  options: FONT_OPTIONS,
+  useFontPreview: true,
+  onChange(values) {
+    selectedFonts = values;
+    refreshPreview();
+  },
+});
+
+const effectSelect = createMultiSelect({
+  rootId: "effectSelectRoot",
+  triggerId: "effectTrigger",
+  menuId: "effectMenu",
+  optionsId: "effectOptions",
+  selectAllId: "effectSelectAll",
+  clearId: "effectClear",
+  closeId: "effectClose",
+  options: EFFECT_OPTIONS,
+  onChange(values) {
+    selectedEffects = values;
+  },
+});
+
+refreshPreview();
 
 async function loadPresets() {
   try {
@@ -127,6 +404,13 @@ generateBtn.addEventListener("click", async () => {
     return;
   }
 
+  selectedFonts = fontSelect.getSelectedValues();
+  selectedEffects = effectSelect.getSelectedValues();
+  if (selectedFonts.length === 0 || selectedEffects.length === 0) {
+    setStatus("Debes seleccionar al menos 1 fuente y 1 efecto visual.");
+    return;
+  }
+
   generateBtn.disabled = true;
   setStatus("Procesando videos... puede tardar varios minutos.");
   resultsEl.innerHTML = "";
@@ -136,6 +420,9 @@ generateBtn.addEventListener("click", async () => {
   formData.append("versions", String(versions));
   formData.append("style", styleInput.value);
   formData.append("prompt_context", promptContextInput.value || "");
+  formData.append("text_bold", "true");
+  selectedFonts.forEach((font) => formData.append("text_fonts", font));
+  selectedEffects.forEach((effect) => formData.append("text_effects", effect));
 
   if (musicPreset.value) {
     formData.append("music_preset", musicPreset.value);

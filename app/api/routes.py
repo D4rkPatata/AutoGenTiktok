@@ -33,6 +33,9 @@ async def generate_videos(
     versions: int = Form(1),
     style: str = Form("clean_fast"),
     prompt_context: str = Form(""),
+    text_fonts: list[str] = Form(...),
+    text_effects: list[str] = Form(...),
+    text_bold: bool = Form(True),
     music_preset: str | None = Form(None),
     music_file: UploadFile | None = File(None),
 ) -> GenerateResponse:
@@ -44,6 +47,9 @@ async def generate_videos(
             music_file=music_file,
             music_preset=music_preset,
             prompt_context=prompt_context,
+            text_fonts=text_fonts,
+            text_effects=text_effects,
+            text_bold=text_bold,
         )
     except HTTPException:
         raise
