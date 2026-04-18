@@ -73,6 +73,7 @@ const musicSearchInput = document.getElementById("musicSearchInput");
 const musicSearchBtn = document.getElementById("musicSearchBtn");
 const musicSearchResults = document.getElementById("musicSearchResults");
 const musicSelectedTrack = document.getElementById("musicSelectedTrack");
+const musicOrderSelect = document.getElementById("musicOrderSelect");
 const versionsInput = document.getElementById("versions");
 const styleInput = document.getElementById("style");
 const promptContextInput = document.getElementById("promptContext");
@@ -750,6 +751,8 @@ async function getErrorMessage(res) {
   try { const t = (await res.text()).trim(); return t || `Error ${res.status}`; } catch (_) { return `Error ${res.status}`; }
 }
 
+const tiktokTestBtn = document.getElementById("tiktokTestBtn");
+
 async function loadTiktokStatus() {
   try {
     const res = await fetch("/api/tiktok/status");
@@ -758,12 +761,34 @@ async function loadTiktokStatus() {
     if (payload.connected) {
       tiktokStatusEl.textContent = `Cuenta conectada: ${currentTiktokUser?.display_name || "TikTok"}`;
       sendTiktokBtn.disabled = false;
+      tiktokTestBtn.style.display = "";
     } else {
       tiktokStatusEl.textContent = "Conecta tu cuenta TikTok desde el header para enviar drafts.";
       sendTiktokBtn.disabled = true;
+      tiktokTestBtn.style.display = "none";
     }
   } catch (_) { tiktokStatusEl.textContent = ""; }
 }
+
+tiktokTestBtn?.addEventListener("click", async () => {
+  tiktokTestBtn.disabled = true;
+  tiktokTestBtn.textContent = "🧪 Enviando prueba...";
+  try {
+    const res = await fetch("/api/tiktok/send-test", { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      setStatus(`✅ Test OK — video enviado a TikTok drafts. Token: ${data.token_preview}`);
+    } else {
+      setStatus(`❌ Test falló: ${data.message || data.error}`);
+    }
+    console.log("TikTok test result:", data);
+  } catch (err) {
+    setStatus(`❌ Test error: ${err.message}`);
+  } finally {
+    tiktokTestBtn.disabled = false;
+    tiktokTestBtn.textContent = "🧪 Test TikTok";
+  }
+});
 
 // ── Results ───────────────────────────────────────────────────────────────────
 function setStatus(text) { statusText.textContent = text; }
@@ -915,16 +940,27 @@ async function sendSelectedToTiktokDrafts() {
   }
   const filenames = getSelectedResultFilenames();
   if (filenames.length === 0) { setStatus("No hay videos seleccionados."); return; }
+  // Build caption map: filename → caption from results
+  const captions = {};
+  currentResults.forEach((item) => {
+    if (filenames.includes(item.filename)) captions[item.filename] = item.caption || item.filename;
+  });
   sendTiktokBtn.disabled = true;
   try {
     const res = await fetch(`/api/tiktok/drafts/${currentJobId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filenames }),
+      body: JSON.stringify({ filenames, captions }),
     });
     if (!res.ok) throw new Error(await getErrorMessage(res));
     const payload = await res.json();
-    setStatus(`TikTok drafts: ${payload.sent}/${payload.attempted} enviados a ${currentTiktokUser.display_name}.`);
+    setStatus(`TikTok drafts: ${payload.sent}/${payload.attempted} enviados a ${currentTiktokUser?.display_name || "TikTok"}.`);
+    if (payload.sent < payload.attempted) {
+      const errors = (payload.results || []).filter(r => !r.ok).map(r => `• ${r.filename}: ${r.message}`).join("\n");
+      if (errors) console.error("TikTok draft errors:\n" + errors);
+      const errSummary = (payload.results || []).filter(r => !r.ok).map(r => r.message).join(" | ").slice(0, 200);
+      setStatus(`TikTok drafts: ${payload.sent}/${payload.attempted} enviados. Error: ${errSummary}`);
+    }
     await loadTiktokStatus();
   } catch (err) {
     setStatus(`Fallo en TikTok: ${err.message}`);
@@ -979,6 +1015,8 @@ function stopPolling() {
 }
 
 // ── Music source tabs ─────────────────────────────────────────────────────────
+let _musicOnlineLoaded = false;
+
 function setMusicSource(source) {
   currentMusicSource = source;
   musicPanelPreset.hidden = source !== "preset";
@@ -987,6 +1025,11 @@ function setMusicSource(source) {
   musicSourceControl.querySelectorAll(".seg-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.value === source);
   });
+  // Auto-load popular tracks the first time the online panel is opened
+  if (source === "online" && !_musicOnlineLoaded) {
+    _musicOnlineLoaded = true;
+    doMusicSearch();
+  }
 }
 
 musicSourceControl.addEventListener("click", (e) => {
@@ -1034,11 +1077,29 @@ function renderMusicResults(tracks) {
   });
 }
 
+let _currentGenre = "";
+
+document.getElementById("musicGenres")?.querySelectorAll(".genre-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".genre-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    _currentGenre = btn.dataset.genre || "";
+    doMusicSearch();
+  });
+});
+
 async function doMusicSearch() {
   const q = musicSearchInput.value.trim();
-  musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0">Buscando...</p>`;
+  const order = musicOrderSelect.value;
+  const genre = _currentGenre;
+  const label = q ? "Buscando..." : "Cargando los más populares...";
+  musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0">${label}</p>`;
   try {
-    const res = await fetch(`/api/music/search?q=${encodeURIComponent(q)}&limit=15`);
+    const genreParam = genre ? `&genre=${encodeURIComponent(genre)}` : "";
+    const url = q
+      ? `/api/music/search?q=${encodeURIComponent(q)}&limit=15&order=${order}${genreParam}`
+      : `/api/music/featured?limit=15&order=${order}${genreParam}`;
+    const res = await fetch(url);
     if (!res.ok) {
       const err = await getErrorMessage(res);
       musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0;color:var(--accent)">${err}</p>`;
@@ -1053,6 +1114,7 @@ async function doMusicSearch() {
 
 musicSearchBtn.addEventListener("click", doMusicSearch);
 musicSearchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doMusicSearch(); });
+musicOrderSelect.addEventListener("change", doMusicSearch);
 
 // ── Generate ──────────────────────────────────────────────────────────────────
 generateBtn.addEventListener("click", async () => {

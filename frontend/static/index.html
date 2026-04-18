@@ -157,8 +157,26 @@
         <!-- Panel: librería online (Jamendo) -->
         <div id="musicPanelOnline" class="music-panel" hidden>
           <div class="music-search-bar">
-            <input id="musicSearchInput" type="text" placeholder="Buscar por nombre, género, artista..." />
+            <input id="musicSearchInput" type="text" placeholder="Buscar por nombre, artista... (vacío = más populares)" />
+            <select id="musicOrderSelect">
+              <option value="popularity_week">Popular esta semana</option>
+              <option value="popularity_month">Popular este mes</option>
+              <option value="popularity_total">Más popular de siempre</option>
+              <option value="releasedate">Más reciente</option>
+            </select>
             <button type="button" id="musicSearchBtn" class="btn-primary">Buscar</button>
+          </div>
+          <div class="music-genres" id="musicGenres">
+            <button type="button" class="genre-btn active" data-genre="">Todos</button>
+            <button type="button" class="genre-btn" data-genre="electronic">Electronic</button>
+            <button type="button" class="genre-btn" data-genre="pop">Pop</button>
+            <button type="button" class="genre-btn" data-genre="hiphop">Hip-Hop</button>
+            <button type="button" class="genre-btn" data-genre="rock">Rock</button>
+            <button type="button" class="genre-btn" data-genre="lofi">Lo-Fi</button>
+            <button type="button" class="genre-btn" data-genre="ambient">Ambient</button>
+            <button type="button" class="genre-btn" data-genre="jazz">Jazz</button>
+            <button type="button" class="genre-btn" data-genre="latin">Latin</button>
+            <button type="button" class="genre-btn" data-genre="reggae">Reggae</button>
           </div>
           <div id="musicSearchResults" class="music-results"></div>
           <div id="musicSelectedTrack" class="music-selected-track" hidden></div>
@@ -286,6 +304,7 @@
         </div>
         <div class="results-actions">
           <button type="button" id="sendTiktokBtn" disabled>Enviar a TikTok Drafts</button>
+          <button type="button" id="tiktokTestBtn" style="display:none;font-size:.78rem;padding:.3rem .7rem;background:none;border:1.5px dashed var(--muted);color:var(--muted);border-radius:6px;cursor:pointer">🧪 Test TikTok</button>
           <p id="tiktokStatus" class="hint"></p>
         </div>
         <div id="results" class="results"></div>

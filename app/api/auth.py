@@ -176,6 +176,7 @@ def tiktok_login(request: Request):
         "scope": _TIKTOK_SCOPES,
         "redirect_uri": settings.tiktok_redirect_uri,
         "state": state,
+        "force_auth": "true",
     }
     return RedirectResponse(url=f"{_TIKTOK_AUTH_URL}?{urlencode(params)}")
 
@@ -204,8 +205,9 @@ def tiktok_callback(request: Request, code: str = "", state: str = "", error: st
 
     access_token = token_data.get("access_token")
     open_id = token_data.get("open_id")
+    import logging; logging.getLogger("tiktok_auth").warning("TOKEN_DATA=%s", token_data)
     if not access_token:
-        raise HTTPException(status_code=400, detail="No se obtuvo access_token de TikTok")
+        raise HTTPException(status_code=400, detail=f"No se obtuvo access_token de TikTok. Respuesta: {token_data}")
 
     try:
         user_info = _http_get_auth(_TIKTOK_USERINFO_URL, access_token)

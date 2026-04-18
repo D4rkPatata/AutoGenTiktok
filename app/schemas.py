@@ -31,6 +31,7 @@ class ZipRequest(BaseModel):
 
 class TiktokDraftRequest(BaseModel):
     filenames: list[str] = Field(default_factory=list)
+    captions: dict[str, str] = Field(default_factory=dict)  # filename → caption
 
 
 class TiktokConnectionStatus(BaseModel):

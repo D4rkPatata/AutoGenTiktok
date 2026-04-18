@@ -24,6 +24,7 @@ from app.services.drive import (
 )
 from app.services.tiktok import TiktokIntegrationError, get_connection_status, send_drafts
 from app.services.storage import jobs_dir, music_presets_dir
+from app.config import settings
 
 router = APIRouter()
 
@@ -36,8 +37,10 @@ def health() -> dict:
     return {"ok": True}
 
 
-@router.get("/music/search")
-def search_music(q: str = Query(""), limit: int = Query(15)) -> dict:
+_JAMENDO_ALLOWED_ORDERS = {"popularity_week", "popularity_month", "popularity_total", "releasedate"}
+
+
+def _jamendo_tracks(params: dict) -> list[dict]:
     from urllib.request import urlopen
     from urllib.parse import urlencode
     import json as _json
@@ -45,23 +48,19 @@ def search_music(q: str = Query(""), limit: int = Query(15)) -> dict:
     if not settings.jamendo_client_id:
         raise HTTPException(status_code=503, detail="Librería no configurada — agrega JAMENDO_CLIENT_ID a tu .env (gratis en developer.jamendo.com)")
 
-    params = urlencode({
-        "client_id": settings.jamendo_client_id,
-        "format": "json",
-        "limit": limit,
-        "namesearch": q,
-        "audioformat": "mp32",
-        "include": "musicinfo",
-        "imagesize": "200",
-    })
-    url = f"https://api.jamendo.com/v3.0/tracks/?{params}"
+    params.setdefault("client_id", settings.jamendo_client_id)
+    params.setdefault("format", "json")
+    params.setdefault("audioformat", "mp32")
+    params.setdefault("imagesize", "200")
+
+    url = f"https://api.jamendo.com/v3.0/tracks/?{urlencode(params)}"
     try:
-        with urlopen(url, timeout=10) as resp:
+        with urlopen(url, timeout=10) as resp:  # nosec B310
             data = _json.loads(resp.read())
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Error consultando Jamendo: {exc}") from exc
 
-    tracks = [
+    return [
         {
             "id": t.get("id"),
             "name": t.get("name"),
@@ -72,6 +71,29 @@ def search_music(q: str = Query(""), limit: int = Query(15)) -> dict:
         }
         for t in data.get("results", [])
     ]
+
+
+@router.get("/music/featured")
+def featured_music(limit: int = Query(15), order: str = Query("popularity_week"), genre: str = Query("")) -> dict:
+    if order not in _JAMENDO_ALLOWED_ORDERS:
+        order = "popularity_week"
+    params: dict = {"limit": limit, "order": order}
+    if genre.strip():
+        params["tags"] = genre.strip()
+    tracks = _jamendo_tracks(params)
+    return {"tracks": tracks}
+
+
+@router.get("/music/search")
+def search_music(q: str = Query(""), limit: int = Query(15), order: str = Query("popularity_week"), genre: str = Query("")) -> dict:
+    if order not in _JAMENDO_ALLOWED_ORDERS:
+        order = "popularity_week"
+    params: dict = {"limit": limit, "order": order}
+    if q.strip():
+        params["namesearch"] = q.strip()
+    if genre.strip():
+        params["tags"] = genre.strip()
+    tracks = _jamendo_tracks(params)
     return {"tracks": tracks}
 
 
@@ -247,6 +269,44 @@ def job_status(job_id: str) -> dict:
     return job
 
 
+@router.post("/tiktok/send-test")
+def tiktok_send_test(request: Request) -> dict:
+    """Generates a tiny 3-second test video and sends it directly to TikTok — for debugging auth."""
+    import subprocess, tempfile
+    session_token = request.session.get("tiktok_access_token")
+    session_open_id = request.session.get("tiktok_user", {}).get("open_id")
+    effective_token = session_token or settings.tiktok_access_token
+    effective_open_id = session_open_id or settings.tiktok_open_id
+    if not effective_token:
+        raise HTTPException(status_code=401, detail="No hay token de TikTok en sesión")
+
+    # Generate a tiny black 1080x1920 video
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+    cmd = [
+        settings.ffmpeg_bin, "-y",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=3",
+        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+        "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-shortest", str(tmp_path),
+    ]
+    subprocess.run(cmd, capture_output=True, timeout=30)  # nosec B603
+    if not tmp_path.exists() or tmp_path.stat().st_size < 1000:
+        raise HTTPException(status_code=500, detail="FFmpeg no pudo generar video de prueba")
+
+    from app.services.tiktok import send_drafts, TiktokIntegrationError
+    try:
+        results = send_drafts([tmp_path], access_token=session_token, open_id=session_open_id)
+    except TiktokIntegrationError as exc:
+        return {"ok": False, "error": str(exc)}
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    r = results[0]
+    return {"ok": r.ok, "filename": r.filename, "message": r.message,
+            "token_preview": effective_token[:20] + "...", "open_id": effective_open_id}
+
+
 @router.get("/download/{job_id}/{filename}")
 def download(job_id: str, filename: str) -> FileResponse:
     safe_name = Path(filename).name
@@ -312,9 +372,15 @@ def tiktok_status(request: Request) -> TiktokConnectionStatus:
 def send_tiktok_drafts(request: Request, job_id: str, payload: TiktokDraftRequest) -> TiktokDraftResponse:
     session_token = request.session.get("tiktok_access_token")
     session_open_id = request.session.get("tiktok_user", {}).get("open_id")
+    import logging; logging.getLogger("tiktok").warning("TOKEN=%s... OPEN_ID=%s", (session_token or "")[:20], session_open_id)
     selected_paths = _selected_video_paths(job_id=job_id, requested_filenames=payload.filenames)
+    captions = [payload.captions.get(p.name, p.stem) for p in selected_paths]
+    public_urls: list[str] | None = None
+    if settings.public_base_url:
+        base = settings.public_base_url.rstrip("/")
+        public_urls = [f"{base}/api/download/{job_id}/{p.name}" for p in selected_paths]
     try:
-        results = send_drafts(selected_paths, access_token=session_token, open_id=session_open_id)
+        results = send_drafts(selected_paths, access_token=session_token, open_id=session_open_id, public_urls=public_urls, captions=captions)
     except TiktokIntegrationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

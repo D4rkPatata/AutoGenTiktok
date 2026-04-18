@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     # Optional: TikTok draft integration (manual token).
     tiktok_access_token: str | None = None
     tiktok_open_id: str | None = None
-    tiktok_draft_endpoint: str = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    tiktok_draft_endpoint: str = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+    # Public base URL (e.g. Cloudflare tunnel) used for TikTok PULL_FROM_URL
+    public_base_url: str | None = None
 
     # TikTok OAuth2 (Login Kit).
     tiktok_client_key: str | None = None

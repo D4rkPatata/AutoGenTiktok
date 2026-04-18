@@ -181,9 +181,10 @@ def build_variant_segments(
 
     if ranked_openers:
         ranked_openers.sort(key=lambda item: item[0], reverse=True)
-        opener = ranked_openers[0][1]
+        top_n = min(5, len(ranked_openers))
+        opener = rng.choice(ranked_openers[:top_n])[1]
     else:
-        opener_clip = rng.choice(clips)
+        opener_clip = clips[seed % len(clips)] if len(clips) > 1 else clips[0]
         opener_duration = min(max(1.2, style.min_cut), min(2.0, opener_clip.duration))
         opener_start = _random_start(opener_clip.duration, opener_duration, rng)
         opener = Segment(
