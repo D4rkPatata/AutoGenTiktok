@@ -65,6 +65,14 @@ const changeFilesBtn = document.getElementById("changeFilesBtn");
 const fileErrorBanner = document.getElementById("fileErrorBanner");
 const musicPreset = document.getElementById("musicPreset");
 const musicFile = document.getElementById("musicFile");
+const musicSourceControl = document.getElementById("musicSourceControl");
+const musicPanelPreset = document.getElementById("musicPanelPreset");
+const musicPanelUpload = document.getElementById("musicPanelUpload");
+const musicPanelOnline = document.getElementById("musicPanelOnline");
+const musicSearchInput = document.getElementById("musicSearchInput");
+const musicSearchBtn = document.getElementById("musicSearchBtn");
+const musicSearchResults = document.getElementById("musicSearchResults");
+const musicSelectedTrack = document.getElementById("musicSelectedTrack");
 const versionsInput = document.getElementById("versions");
 const styleInput = document.getElementById("style");
 const promptContextInput = document.getElementById("promptContext");
@@ -98,6 +106,8 @@ let selectedFonts = [];
 let selectedEffects = [];
 let currentTextMode = "two_lines";
 let currentJobId = "";
+let currentMusicSource = "none"; // "none" | "preset" | "upload" | "online"
+let selectedOnlineTrack = null; // { name, artist, audio_url }
 let currentResults = [];
 const removedVideos = new Set();
 
@@ -157,33 +167,54 @@ function renderAuthHeader() {
   authArea.insertBefore(slot, tiktokAuthArea);
 }
 
+const TIKTOK_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"/></svg>`;
+
 function renderTiktokAuth() {
   tiktokAuthArea.innerHTML = "";
   if (!currentTiktokUser) {
-    const a = document.createElement("a");
-    a.href = "/api/auth/tiktok/login";
-    a.className = "btn-tiktok";
-    a.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"/></svg> Conectar TikTok`;
-    tiktokAuthArea.appendChild(a);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-tiktok";
+    btn.innerHTML = `${TIKTOK_ICON} Conectar TikTok`;
+    btn.addEventListener("click", () => {
+      const w = 520, h = 680;
+      const left = Math.round(screen.width / 2 - w / 2);
+      const top = Math.round(screen.height / 2 - h / 2);
+      window.open("/api/auth/tiktok/login", "tiktok_auth", `width=${w},height=${h},left=${left},top=${top},scrollbars=yes`);
+    });
+    tiktokAuthArea.appendChild(btn);
   } else {
     const chip = document.createElement("div");
     chip.className = "tiktok-chip";
     const icon = document.createElement("span");
     icon.className = "tiktok-chip-icon";
-    icon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"/></svg>`;
+    icon.innerHTML = TIKTOK_ICON;
     const name = document.createElement("span");
     name.className = "user-name";
     name.textContent = currentTiktokUser.display_name || "TikTok";
-    const logout = document.createElement("a");
-    logout.href = "/api/auth/tiktok/logout";
+    const logout = document.createElement("button");
+    logout.type = "button";
     logout.className = "btn-logout";
     logout.textContent = "Desconectar";
+    logout.addEventListener("click", async () => {
+      await fetch("/api/auth/tiktok/logout");
+      currentTiktokUser = null;
+      renderTiktokAuth();
+      loadTiktokStatus();
+    });
     chip.appendChild(icon);
     chip.appendChild(name);
     chip.appendChild(logout);
     tiktokAuthArea.appendChild(chip);
   }
 }
+
+// Recibe el mensaje del popup de TikTok cuando el login completa
+window.addEventListener("message", (event) => {
+  if (event.data === "tiktok_connected") {
+    loadAuthStatus().then(() => loadTiktokStatus());
+  }
+});
 
 // ── Error helper ──────────────────────────────────────────────────────────────
 function showFileError(msg) {
@@ -947,6 +978,82 @@ function stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
 
+// ── Music source tabs ─────────────────────────────────────────────────────────
+function setMusicSource(source) {
+  currentMusicSource = source;
+  musicPanelPreset.hidden = source !== "preset";
+  musicPanelUpload.hidden = source !== "upload";
+  musicPanelOnline.hidden = source !== "online";
+  musicSourceControl.querySelectorAll(".seg-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.value === source);
+  });
+}
+
+musicSourceControl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".seg-btn");
+  if (btn) setMusicSource(btn.dataset.value);
+});
+
+// ── Jamendo music search ──────────────────────────────────────────────────────
+function fmtDuration(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function renderMusicResults(tracks) {
+  musicSearchResults.innerHTML = "";
+  if (!tracks.length) {
+    musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0">Sin resultados. Prueba otro término.</p>`;
+    return;
+  }
+  tracks.forEach((track) => {
+    const item = document.createElement("div");
+    item.className = "music-result-item";
+    item.innerHTML = `
+      ${track.image_url ? `<img src="${track.image_url}" class="music-result-img" alt="">` : `<div class="music-result-img-placeholder"></div>`}
+      <div class="music-result-info">
+        <span class="music-result-name">${track.name}</span>
+        <span class="music-result-artist">${track.artist} · ${fmtDuration(track.duration)}</span>
+      </div>
+      <div class="music-result-actions">
+        <audio controls preload="none" src="${track.audio_url}" class="music-result-audio"></audio>
+        <button type="button" class="btn-primary btn-sm" data-url="${track.audio_url}" data-name="${track.name}" data-artist="${track.artist}">Usar</button>
+      </div>`;
+    item.querySelector(".btn-primary").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
+      selectedOnlineTrack = { name: btn.dataset.name, artist: btn.dataset.artist, audio_url: btn.dataset.url };
+      musicSelectedTrack.hidden = false;
+      musicSelectedTrack.innerHTML = `<span class="music-selected-label">✓ Seleccionada:</span> <strong>${selectedOnlineTrack.name}</strong> — ${selectedOnlineTrack.artist}
+        <button type="button" class="btn-text-sm" id="clearTrackBtn">Quitar</button>`;
+      musicSelectedTrack.querySelector("#clearTrackBtn").addEventListener("click", () => {
+        selectedOnlineTrack = null;
+        musicSelectedTrack.hidden = true;
+      });
+    });
+    musicSearchResults.appendChild(item);
+  });
+}
+
+async function doMusicSearch() {
+  const q = musicSearchInput.value.trim();
+  musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0">Buscando...</p>`;
+  try {
+    const res = await fetch(`/api/music/search?q=${encodeURIComponent(q)}&limit=15`);
+    if (!res.ok) {
+      const err = await getErrorMessage(res);
+      musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0;color:var(--accent)">${err}</p>`;
+      return;
+    }
+    const { tracks } = await res.json();
+    renderMusicResults(tracks);
+  } catch (err) {
+    musicSearchResults.innerHTML = `<p class="hint" style="padding:.5rem 0;color:var(--accent)">Error: ${err.message}</p>`;
+  }
+}
+
+musicSearchBtn.addEventListener("click", doMusicSearch);
+musicSearchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doMusicSearch(); });
+
 // ── Generate ──────────────────────────────────────────────────────────────────
 generateBtn.addEventListener("click", async () => {
   if (uploadMode === "local") {
@@ -989,8 +1096,9 @@ generateBtn.addEventListener("click", async () => {
   formData.append("narrator", narratorToggle.checked ? "true" : "false");
   selectedFonts.forEach((font) => formData.append("text_fonts", font));
   selectedEffects.forEach((effect) => formData.append("text_effects", effect));
-  if (musicPreset.value) formData.append("music_preset", musicPreset.value);
-  if (musicFile.files?.[0]) formData.append("music_file", musicFile.files[0]);
+  if (currentMusicSource === "preset" && musicPreset.value) formData.append("music_preset", musicPreset.value);
+  if (currentMusicSource === "upload" && musicFile.files?.[0]) formData.append("music_file", musicFile.files[0]);
+  if (currentMusicSource === "online" && selectedOnlineTrack) formData.append("music_url", selectedOnlineTrack.audio_url);
 
   try {
     const res = await fetch("/api/generate", { method: "POST", body: formData });

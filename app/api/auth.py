@@ -220,7 +220,20 @@ def tiktok_callback(request: Request, code: str = "", state: str = "", error: st
     }
     request.session["tiktok_access_token"] = access_token
 
-    return RedirectResponse(url="/")
+    # Close the popup and notify the parent window
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body>
+<p style="font-family:sans-serif;text-align:center;margin-top:40px">Conectado. Cerrando...</p>
+<script>
+  if (window.opener) {
+    window.opener.postMessage("tiktok_connected", window.location.origin);
+    window.close();
+  } else {
+    window.location.href = "/";
+  }
+</script>
+</body></html>""")
 
 
 @router.get("/tiktok/me")
@@ -232,7 +245,7 @@ def tiktok_me(request: Request) -> dict:
 
 
 @router.get("/tiktok/logout")
-def tiktok_logout(request: Request):
+def tiktok_logout(request: Request) -> dict:
     request.session.pop("tiktok_user", None)
     request.session.pop("tiktok_access_token", None)
-    return RedirectResponse(url="/")
+    return {"ok": True}

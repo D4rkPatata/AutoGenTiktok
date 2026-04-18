@@ -133,15 +133,35 @@
       <!-- 2. Música -->
       <section class="card">
         <h2>2. Música</h2>
-        <div class="grid-2">
-          <div>
-            <label for="musicPreset">Elegir preset</label>
-            <select id="musicPreset"><option value="">Sin preset</option></select>
+
+        <!-- Tabs de fuente de música -->
+        <div class="segmented-control" id="musicSourceControl" style="margin-bottom:1rem">
+          <button type="button" class="seg-btn active" data-value="none">Sin música</button>
+          <button type="button" class="seg-btn" data-value="preset">Preset</button>
+          <button type="button" class="seg-btn" data-value="upload">Subir archivo</button>
+          <button type="button" class="seg-btn" data-value="online">Librería online</button>
+        </div>
+
+        <!-- Panel: preset -->
+        <div id="musicPanelPreset" class="music-panel" hidden>
+          <label for="musicPreset">Elegir preset descargado</label>
+          <select id="musicPreset"><option value="">— Sin preset —</option></select>
+        </div>
+
+        <!-- Panel: upload -->
+        <div id="musicPanelUpload" class="music-panel" hidden>
+          <label for="musicFile">Subir archivo (MP3 / WAV / M4A / AAC)</label>
+          <input id="musicFile" type="file" accept="audio/*" />
+        </div>
+
+        <!-- Panel: librería online (Jamendo) -->
+        <div id="musicPanelOnline" class="music-panel" hidden>
+          <div class="music-search-bar">
+            <input id="musicSearchInput" type="text" placeholder="Buscar por nombre, género, artista..." />
+            <button type="button" id="musicSearchBtn" class="btn-primary">Buscar</button>
           </div>
-          <div>
-            <label for="musicFile">O subir música (MP3/WAV/M4A/AAC)</label>
-            <input id="musicFile" type="file" accept="audio/*" />
-          </div>
+          <div id="musicSearchResults" class="music-results"></div>
+          <div id="musicSelectedTrack" class="music-selected-track" hidden></div>
         </div>
       </section>
 

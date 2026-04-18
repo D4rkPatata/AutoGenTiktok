@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     tiktok_client_secret: str | None = None
     tiktok_redirect_uri: str | None = None
 
+    # Optional: Jamendo open music library (free API key at developer.jamendo.com).
+    jamendo_client_id: str | None = None
+
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: str | None = None
     google_oauth_redirect_uri: str | None = None

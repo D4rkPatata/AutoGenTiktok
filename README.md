@@ -144,22 +144,14 @@ Si no hay musica, se conserva audio del montaje base.
 - Prompt corto orientado a TikTok (emojis + hashtags).
 - Fallback local si no hay API key o falla la llamada.
 
-## 6) Limites del MVP
 
-- Sin login ni manejo multiusuario.
-- Sin timeline manual.
-- Integracion TikTok en modo API (requiere token y open id validos).
-- Sin DB compleja.
-- Procesamiento sin cola (request bloqueante durante render).
-- Heuristicas de fragmentacion basadas en reglas (no vision IA avanzada).
-
-## 7) Requisitos previos
+## 6) Requisitos previos
 
 1. Python 3.11+.
 2. FFmpeg y FFprobe instalados y disponibles en PATH.
 3. (Opcional) API key de Gemini free tier.
 
-## 8) Como correr local
+## 7) Como correr local
 
 1. Crear entorno virtual:
 
@@ -207,7 +199,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 - `http://127.0.0.1:8000`
 
-## 9) API key (Gemini)
+## 8) API key (Gemini)
 
 1. Crea una key en Google AI Studio (free tier).
 2. Abre tu archivo `.env` local.
@@ -220,7 +212,7 @@ GEMINI_MODEL=gemini-1.5-flash
 
 4. No subas tu `.env` al repo. Este proyecto ignora `.env` por `.gitignore`.
 
-## 10) Variables de configuracion principales
+## 9) Variables de configuracion principales
 
 Revisar `.env.example`:
 - limites de cantidad y tamano
@@ -230,7 +222,7 @@ Revisar `.env.example`:
 - claves de captions IA
 - credenciales opcionales de Google Drive/TikTok
 
-## 11) Notas operativas
+## 10) Notas operativas
 
 - Los outputs quedan en `data/jobs/<job_id>/outputs` para descarga.
 - Se limpian jobs antiguos en startup segun `CLEANUP_AFTER_HOURS`.

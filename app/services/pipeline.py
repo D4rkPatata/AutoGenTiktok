@@ -111,6 +111,7 @@ async def process_generation(
     drive_folder_id: str,
     centered_text: str,
     drive_file_ids: list[str] | None = None,
+    music_url: str | None = None,
     text_mode: str = "two_lines",
     narrator: bool = False,
     oauth_token: str | None = None,
@@ -217,6 +218,14 @@ async def process_generation(
                 status_code=400,
                 detail=f"La musica excede {settings.max_music_size_mb}MB",
             )
+        selected_music = music_dest
+    elif music_url:
+        from urllib.request import urlretrieve
+        try:
+            music_dest = inputs_dir / "music_online.mp3"
+            urlretrieve(music_url, music_dest)  # nosec B310
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"No se pudo descargar la musica: {exc}") from exc
         selected_music = music_dest
     elif music_preset:
         candidate = music_presets_dir() / music_preset

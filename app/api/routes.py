@@ -36,6 +36,45 @@ def health() -> dict:
     return {"ok": True}
 
 
+@router.get("/music/search")
+def search_music(q: str = Query(""), limit: int = Query(15)) -> dict:
+    from urllib.request import urlopen
+    from urllib.parse import urlencode
+    import json as _json
+
+    if not settings.jamendo_client_id:
+        raise HTTPException(status_code=503, detail="Librería no configurada — agrega JAMENDO_CLIENT_ID a tu .env (gratis en developer.jamendo.com)")
+
+    params = urlencode({
+        "client_id": settings.jamendo_client_id,
+        "format": "json",
+        "limit": limit,
+        "namesearch": q,
+        "audioformat": "mp32",
+        "include": "musicinfo",
+        "imagesize": "200",
+    })
+    url = f"https://api.jamendo.com/v3.0/tracks/?{params}"
+    try:
+        with urlopen(url, timeout=10) as resp:
+            data = _json.loads(resp.read())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error consultando Jamendo: {exc}") from exc
+
+    tracks = [
+        {
+            "id": t.get("id"),
+            "name": t.get("name"),
+            "artist": t.get("artist_name"),
+            "duration": t.get("duration"),
+            "audio_url": t.get("audio"),
+            "image_url": t.get("image"),
+        }
+        for t in data.get("results", [])
+    ]
+    return {"tracks": tracks}
+
+
 @router.get("/music-presets", response_model=list[MusicPreset])
 def list_music_presets() -> list[MusicPreset]:
     allowed = {".mp3", ".wav", ".m4a", ".aac"}
@@ -115,6 +154,7 @@ async def generate_videos(
     centered_text: str = Form(""),
     music_preset: str | None = Form(None),
     music_file: UploadFile | None = File(None),
+    music_url: str = Form(""),
     text_mode: str = Form("two_lines"),
     narrator: bool = Form(False),
 ) -> JSONResponse:
@@ -144,31 +184,25 @@ async def generate_videos(
     job_id = uuid4().hex[:12]
     _jobs[job_id] = {"status": "processing", "step": "Iniciando...", "progress": 0.0}
 
-    async def _run() -> None:
-        def _on_progress(step: str, pct: float) -> None:
-            _jobs[job_id]["step"] = step
-            _jobs[job_id]["progress"] = pct
+    def _on_progress(step: str, pct: float) -> None:
+        _jobs[job_id]["step"] = step
+        _jobs[job_id]["progress"] = pct
 
-        try:
-            import starlette.datastructures as _ds
+    def _run_in_thread() -> None:
+        """Runs in a worker thread so blocking subprocess calls don't starve the event loop."""
+        import starlette.datastructures as _ds
 
-            # Rebuild UploadFile-like objects from pre-read bytes
-            rebuilt_clips: list[UploadFile] = []
-            for fname, data in read_clips:
-                spooled = _ds.UploadFile(file=BytesIO(data), filename=fname)
-                rebuilt_clips.append(spooled)
+        rebuilt_clips = [_ds.UploadFile(file=BytesIO(data), filename=fname) for fname, data in read_clips]
+        rebuilt_music = _ds.UploadFile(file=BytesIO(read_music[1]), filename=read_music[0]) if read_music else None
 
-            rebuilt_music: UploadFile | None = None
-            if read_music:
-                fname, data = read_music
-                rebuilt_music = _ds.UploadFile(file=BytesIO(data), filename=fname)
-
+        async def _core() -> tuple[str, list]:
             _, final_style, results = await process_generation(
                 clips=rebuilt_clips,
                 requested_versions=versions,
                 style_name=style,
                 music_file=rebuilt_music,
                 music_preset=music_preset,
+                music_url=music_url or None,
                 prompt_context=prompt_context,
                 text_fonts=text_fonts,
                 text_effects=text_effects,
@@ -182,6 +216,10 @@ async def generate_videos(
                 job_id=job_id,
                 progress_callback=_on_progress,
             )
+            return final_style, results
+
+        try:
+            final_style, results = asyncio.run(_core())
             _jobs[job_id] = {
                 "status": "done",
                 "step": "Listo",
@@ -197,7 +235,7 @@ async def generate_videos(
         except Exception as exc:
             _jobs[job_id] = {"status": "error", "step": "Error", "progress": 0.0, "error": str(exc)}
 
-    background_tasks.add_task(_run)
+    background_tasks.add_task(_run_in_thread)
     return JSONResponse({"job_id": job_id, "status": "processing"})
 
 

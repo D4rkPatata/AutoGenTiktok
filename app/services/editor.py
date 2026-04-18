@@ -521,7 +521,7 @@ def _build_effect_layers(
     layers: list[str] = []
 
     if effect == "none":
-        layers.append(_build_drawtext(text, start, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, True))
+        layers.append(_build_drawtext(text, start, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, False))
         return layers
 
     if effect == "fade":
@@ -537,7 +537,7 @@ def _build_effect_layers(
                 box_border=box_border,
                 font_name=font_name,
                 is_bold=overlay_bold,
-                use_box=True,
+                use_box=False,
                 alpha_expr=fade_alpha,
             )
         )
@@ -571,7 +571,7 @@ def _build_effect_layers(
                 box_border=box_border,
                 font_name=font_name,
                 is_bold=overlay_bold,
-                use_box=True,
+                use_box=False,
             )
         )
         if settle_end < end:
@@ -586,7 +586,7 @@ def _build_effect_layers(
                     box_border=box_border,
                     font_name=font_name,
                     is_bold=overlay_bold,
-                    use_box=True,
+                    use_box=False,
                 )
             )
         return layers
@@ -599,11 +599,11 @@ def _build_effect_layers(
         [
             _build_drawtext(text, start, b1, font_size, f"({y_base})-170", box_color, box_border, font_name, overlay_bold, False),
             _build_drawtext(text, b1, b2, font_size, f"({y_base})+55", box_color, box_border, font_name, overlay_bold, False),
-            _build_drawtext(text, b2, b3, font_size, f"({y_base})-20", box_color, box_border, font_name, overlay_bold, True),
+            _build_drawtext(text, b2, b3, font_size, f"({y_base})-20", box_color, box_border, font_name, overlay_bold, False),
         ]
     )
     if b3 < end:
-        layers.append(_build_drawtext(text, b3, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, True))
+        layers.append(_build_drawtext(text, b3, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, False))
     return layers
 
 
