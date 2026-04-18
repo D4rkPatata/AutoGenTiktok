@@ -1,13 +1,29 @@
 from __future__ import annotations
 
+import os
 import random
 import shutil
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import settings
 from app.services.analyzer import ClipAnalysis
 from app.services.probe import MediaInfo, probe_media
+
+
+def _sys_fonts_dir() -> Path:
+    """Devuelve el directorio de fuentes del sistema, portable entre OS y unidades."""
+    if sys.platform == "win32":
+        windir = os.environ.get("WINDIR") or os.environ.get("SystemRoot") or "C:/Windows"
+        return Path(windir) / "Fonts"
+    if sys.platform == "darwin":
+        return Path("/Library/Fonts")
+    return Path("/usr/share/fonts")
+
+
+_SFD = _sys_fonts_dir()  # system fonts dir
 from app.utils.ffmpeg import run_cmd
 
 
@@ -49,33 +65,36 @@ STYLE_PROFILES: dict[str, StyleProfile] = {
 }
 
 FONT_CANDIDATE_FILES: dict[str, list[Path]] = {
-    "Lobster": [Path("data/fonts/Lobster.ttf"), Path("data/fonts/Lobster-Bold.ttf"), Path("C:/Windows/Fonts/Lobster-Regular.ttf")],
-    "Lobster-Bold": [Path("data/fonts/Lobster-Bold.ttf"), Path("data/fonts/Lobster.ttf"), Path("C:/Windows/Fonts/Lobster-Regular.ttf")],
-    "Baloo": [Path("data/fonts/Baloo.ttf"), Path("data/fonts/Baloo-Bold.ttf"), Path("C:/Windows/Fonts/Baloo2-Regular.ttf"), Path("C:/Windows/Fonts/Baloo-Regular.ttf")],
-    "Baloo-Bold": [Path("data/fonts/Baloo-Bold.ttf"), Path("data/fonts/Baloo.ttf"), Path("C:/Windows/Fonts/Baloo2-Regular.ttf"), Path("C:/Windows/Fonts/Baloo-Regular.ttf")],
-    "Fredoka": [Path("data/fonts/Fredoka.ttf"), Path("data/fonts/Fredoka-Bold.ttf"), Path("C:/Windows/Fonts/Fredoka-Regular.ttf")],
-    "Fredoka-Bold": [Path("data/fonts/Fredoka-Bold.ttf"), Path("data/fonts/Fredoka.ttf"), Path("C:/Windows/Fonts/Fredoka-Regular.ttf")],
-    "Bangers": [Path("data/fonts/Bangers.ttf"), Path("data/fonts/Bangers-Bold.ttf"), Path("C:/Windows/Fonts/Bangers-Regular.ttf")],
-    "Bangers-Bold": [Path("data/fonts/Bangers-Bold.ttf"), Path("data/fonts/Bangers.ttf"), Path("C:/Windows/Fonts/Bangers-Regular.ttf")],
-    "Luckiest Guy": [Path("data/fonts/LuckiestGuy.ttf"), Path("data/fonts/LuckiestGuy-Bold.ttf"), Path("C:/Windows/Fonts/LuckiestGuy-Regular.ttf")],
-    "Luckiest Guy-Bold": [Path("data/fonts/LuckiestGuy-Bold.ttf"), Path("data/fonts/LuckiestGuy.ttf"), Path("C:/Windows/Fonts/LuckiestGuy-Regular.ttf")],
-    "Anton": [Path("data/fonts/Anton.ttf"), Path("data/fonts/Anton-Bold.ttf"), Path("C:/Windows/Fonts/Anton-Regular.ttf")],
-    "Anton-Bold": [Path("data/fonts/Anton-Bold.ttf"), Path("data/fonts/Anton.ttf"), Path("C:/Windows/Fonts/Anton-Regular.ttf")],
-    "Montserrat": [Path("data/fonts/Montserrat.ttf"), Path("data/fonts/Montserrat-Bold.ttf"), Path("C:/Windows/Fonts/Montserrat-Regular.ttf")],
-    "Montserrat-Bold": [Path("data/fonts/Montserrat-Bold.ttf"), Path("data/fonts/Montserrat.ttf"), Path("C:/Windows/Fonts/Montserrat-Regular.ttf")],
-    "Oswald": [Path("data/fonts/Oswald.ttf"), Path("data/fonts/Oswald-Bold.ttf"), Path("C:/Windows/Fonts/Oswald-Regular.ttf")],
-    "Oswald-Bold": [Path("data/fonts/Oswald-Bold.ttf"), Path("data/fonts/Oswald.ttf"), Path("C:/Windows/Fonts/Oswald-Regular.ttf")],
-    "Poppins": [Path("data/fonts/Poppins.ttf"), Path("data/fonts/Poppins-Bold.ttf"), Path("C:/Windows/Fonts/Poppins-Regular.ttf")],
-    "Poppins-Bold": [Path("data/fonts/Poppins-Bold.ttf"), Path("data/fonts/Poppins.ttf"), Path("C:/Windows/Fonts/Poppins-Regular.ttf")],
-    "Inter": [Path("data/fonts/Inter.ttf"), Path("data/fonts/Inter-Bold.ttf"), Path("C:/Windows/Fonts/Inter-Regular.ttf")],
-    "Inter-Bold": [Path("data/fonts/Inter-Bold.ttf"), Path("data/fonts/Inter.ttf"), Path("C:/Windows/Fonts/Inter-Regular.ttf")],
-    "Nunito": [Path("data/fonts/Nunito.ttf"), Path("data/fonts/Nunito-Bold.ttf"), Path("C:/Windows/Fonts/Nunito-Regular.ttf")],
-    "Nunito-Bold": [Path("data/fonts/Nunito-Bold.ttf"), Path("data/fonts/Nunito.ttf"), Path("C:/Windows/Fonts/Nunito-Regular.ttf")],
+    "Lobster": [Path("data/fonts/Lobster.ttf"), Path("data/fonts/Lobster-Bold.ttf"), _SFD / "Lobster-Regular.ttf"],
+    "Lobster-Bold": [Path("data/fonts/Lobster-Bold.ttf"), Path("data/fonts/Lobster.ttf"), _SFD / "Lobster-Regular.ttf"],
+    "Baloo": [Path("data/fonts/Baloo.ttf"), Path("data/fonts/Baloo-Bold.ttf"), _SFD / "Baloo2-Regular.ttf", _SFD / "Baloo-Regular.ttf"],
+    "Baloo-Bold": [Path("data/fonts/Baloo-Bold.ttf"), Path("data/fonts/Baloo.ttf"), _SFD / "Baloo2-Regular.ttf", _SFD / "Baloo-Regular.ttf"],
+    "Fredoka": [Path("data/fonts/Fredoka.ttf"), Path("data/fonts/Fredoka-Bold.ttf"), _SFD / "Fredoka-Regular.ttf"],
+    "Fredoka-Bold": [Path("data/fonts/Fredoka-Bold.ttf"), Path("data/fonts/Fredoka.ttf"), _SFD / "Fredoka-Regular.ttf"],
+    "Bangers": [Path("data/fonts/Bangers.ttf"), Path("data/fonts/Bangers-Bold.ttf"), _SFD / "Bangers-Regular.ttf"],
+    "Bangers-Bold": [Path("data/fonts/Bangers-Bold.ttf"), Path("data/fonts/Bangers.ttf"), _SFD / "Bangers-Regular.ttf"],
+    "Luckiest Guy": [Path("data/fonts/LuckiestGuy.ttf"), Path("data/fonts/LuckiestGuy-Bold.ttf"), _SFD / "LuckiestGuy-Regular.ttf"],
+    "Luckiest Guy-Bold": [Path("data/fonts/LuckiestGuy-Bold.ttf"), Path("data/fonts/LuckiestGuy.ttf"), _SFD / "LuckiestGuy-Regular.ttf"],
+    "Anton": [Path("data/fonts/Anton.ttf"), Path("data/fonts/Anton-Bold.ttf"), _SFD / "Anton-Regular.ttf"],
+    "Anton-Bold": [Path("data/fonts/Anton-Bold.ttf"), Path("data/fonts/Anton.ttf"), _SFD / "Anton-Regular.ttf"],
+    "Montserrat": [Path("data/fonts/Montserrat.ttf"), Path("data/fonts/Montserrat-Bold.ttf"), _SFD / "Montserrat-Regular.ttf"],
+    "Montserrat-Bold": [Path("data/fonts/Montserrat-Bold.ttf"), Path("data/fonts/Montserrat.ttf"), _SFD / "Montserrat-Regular.ttf"],
+    "Oswald": [Path("data/fonts/Oswald.ttf"), Path("data/fonts/Oswald-Bold.ttf"), _SFD / "Oswald-Regular.ttf"],
+    "Oswald-Bold": [Path("data/fonts/Oswald-Bold.ttf"), Path("data/fonts/Oswald.ttf"), _SFD / "Oswald-Regular.ttf"],
+    "Poppins": [Path("data/fonts/Poppins.ttf"), Path("data/fonts/Poppins-Bold.ttf"), _SFD / "Poppins-Regular.ttf"],
+    "Poppins-Bold": [Path("data/fonts/Poppins-Bold.ttf"), Path("data/fonts/Poppins.ttf"), _SFD / "Poppins-Regular.ttf"],
+    "Inter": [Path("data/fonts/Inter.ttf"), Path("data/fonts/Inter-Bold.ttf"), _SFD / "Inter-Regular.ttf"],
+    "Inter-Bold": [Path("data/fonts/Inter-Bold.ttf"), Path("data/fonts/Inter.ttf"), _SFD / "Inter-Regular.ttf"],
+    "Nunito": [Path("data/fonts/Nunito.ttf"), Path("data/fonts/Nunito-Bold.ttf"), _SFD / "Nunito-Regular.ttf"],
+    "Nunito-Bold": [Path("data/fonts/Nunito-Bold.ttf"), Path("data/fonts/Nunito.ttf"), _SFD / "Nunito-Regular.ttf"],
 }
 
 FALLBACK_FONT_FILES = [
-    Path("C:/Windows/Fonts/arial.ttf"),
-    Path("C:/Windows/Fonts/segoeui.ttf"),
+    _SFD / "arial.ttf",
+    _SFD / "segoeui.ttf",
+    _SFD / "Arial.ttf",          # Linux/Mac case
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),  # Linux fallback
+    Path("/System/Library/Fonts/Helvetica.ttc"),                    # Mac fallback
 ]
 
 
@@ -466,7 +485,7 @@ def _build_drawtext(
         font_opt = f"fontfile='{_escape_drawtext(font_path.as_posix())}'"
 
     enable_expr = f"between(t,{start:.2f},{end:.2f})"
-    box_flag = 0
+    box_flag = 1 if use_box else 0
     border_width = "2.2" if is_bold else "0.0"
     alpha_clause = ""
     if alpha_expr:
@@ -500,6 +519,10 @@ def _build_effect_layers(
 ) -> list[str]:
     intro_end = min(start + 0.55, end)
     layers: list[str] = []
+
+    if effect == "none":
+        layers.append(_build_drawtext(text, start, end, font_size, y_base, box_color, box_border, font_name, overlay_bold, True))
+        return layers
 
     if effect == "fade":
         fade_alpha = f"if(lt(t,{start:.3f}),0,if(lt(t,{intro_end:.3f}),(t-{start:.3f})/{max(intro_end-start,0.01):.3f},1))"
@@ -591,14 +614,17 @@ def _apply_text_overlays(
     output_fps: float,
     overlay_text_1: str,
     overlay_text_2: str,
+    centered_text: str,
     overlay_font: str,
     overlay_effect: str,
     overlay_bold: bool,
+    text_mode: str = "two_lines",
 ) -> None:
     text_1 = (overlay_text_1 or "").strip()
     text_2 = (overlay_text_2 or "").strip()
+    text_center = (centered_text or "").strip()
 
-    if not text_1 and not text_2:
+    if not text_1 and not text_2 and not text_center:
         shutil.copy(in_path, out_path)
         return
 
@@ -621,20 +647,54 @@ def _apply_text_overlays(
         effect=overlay_effect,
         overlay_bold=overlay_bold,
     )
-    draw_2_layers = _build_effect_layers(
-        text=text_2,
-        start=second_start,
-        end=second_end,
-        font_size=71,
-        y_base="h*0.79",
-        box_color="black@0.36",
-        box_border=16,
-        font_name=overlay_font,
-        effect=overlay_effect,
-        overlay_bold=overlay_bold,
-    )
 
-    filter_chain = ",".join(draw_1_layers + draw_2_layers)
+    # In "one_big" mode, render text_1 large and centered vertically; skip text_2.
+    if text_mode == "one_big":
+        draw_1_layers = _build_effect_layers(
+            text=text_1,
+            start=first_start,
+            end=max(first_end, d - 1.0),
+            font_size=96,
+            y_base="(h-text_h)/2",
+            box_color="black@0.42",
+            box_border=20,
+            font_name=overlay_font,
+            effect=overlay_effect,
+            overlay_bold=overlay_bold,
+        )
+        draw_2_layers: list[str] = []
+    else:
+        draw_2_layers = _build_effect_layers(
+            text=text_2,
+            start=second_start,
+            end=second_end,
+            font_size=71,
+            y_base="h*0.79",
+            box_color="black@0.36",
+            box_border=16,
+            font_name=overlay_font,
+            effect=overlay_effect,
+            overlay_bold=overlay_bold,
+        )
+
+    center_layers: list[str] = []
+    if text_center:
+        center_layers = [
+            _build_drawtext(
+                text=text_center,
+                start=0.0,
+                end=max(d - 0.08, 0.10),
+                font_size=84,
+                y_expr="(h-text_h)/2",
+                box_color="black@0.0",
+                box_border=0,
+                font_name=overlay_font,
+                is_bold=overlay_bold,
+                use_box=False,
+            )
+        ]
+
+    filter_chain = ",".join(draw_1_layers + draw_2_layers + center_layers)
 
     cmd = [
         settings.ffmpeg_bin,
@@ -661,6 +721,94 @@ def _apply_text_overlays(
         "copy",
         "-movflags",
         "+faststart",
+        str(out_path),
+    ]
+    run_cmd(cmd)
+
+
+def _apply_overlays_and_fade(
+    in_path: Path,
+    out_path: Path,
+    duration: float,
+    output_fps: float,
+    overlay_text_1: str,
+    overlay_text_2: str,
+    centered_text: str,
+    overlay_font: str,
+    overlay_effect: str,
+    overlay_bold: bool,
+    text_mode: str = "two_lines",
+) -> None:
+    """Single FFmpeg pass: drawtext overlays + tail fade (saves one re-encode vs separate passes)."""
+    text_1 = (overlay_text_1 or "").strip()
+    text_2 = (overlay_text_2 or "").strip()
+    text_center = (centered_text or "").strip()
+
+    d = max(duration, 1.0)
+    fade_duration = 1.0
+    fade_start = max(d - fade_duration, 0.0)
+
+    draw_layers: list[str] = []
+
+    if text_1 or text_2 or text_center:
+        first_start = min(1.0, max(0.0, d - 0.2))
+        first_end = min(7.0, max(first_start + 0.4, d - 1.2))
+        second_start = min(8.0, max(first_end + 0.2, d - 1.1))
+        second_end = max(second_start + 0.25, d - 1.0)
+
+        if text_mode == "one_big" and text_1:
+            draw_layers += _build_effect_layers(
+                text=text_1, start=first_start, end=max(first_end, d - 1.0),
+                font_size=96, y_base="(h-text_h)/2",
+                box_color="black@0.42", box_border=20,
+                font_name=overlay_font, effect=overlay_effect, overlay_bold=overlay_bold,
+            )
+        else:
+            if text_1:
+                draw_layers += _build_effect_layers(
+                    text=text_1, start=first_start, end=first_end,
+                    font_size=75, y_base="h*0.14",
+                    box_color="black@0.42", box_border=18,
+                    font_name=overlay_font, effect=overlay_effect, overlay_bold=overlay_bold,
+                )
+            if text_2:
+                draw_layers += _build_effect_layers(
+                    text=text_2, start=second_start, end=second_end,
+                    font_size=71, y_base="h*0.79",
+                    box_color="black@0.36", box_border=16,
+                    font_name=overlay_font, effect=overlay_effect, overlay_bold=overlay_bold,
+                )
+
+        if text_center:
+            draw_layers.append(
+                _build_drawtext(
+                    text=text_center, start=0.0, end=max(d - 0.08, 0.10),
+                    font_size=84, y_expr="(h-text_h)/2",
+                    box_color="black@0.0", box_border=0,
+                    font_name=overlay_font, is_bold=overlay_bold, use_box=False,
+                )
+            )
+
+    # Chain drawtext layers then apply fade
+    text_chain = ",".join(draw_layers) if draw_layers else None
+    fade_filter = f"fade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}"
+    vf = f"{text_chain},{fade_filter}" if text_chain else fade_filter
+
+    cmd = [
+        settings.ffmpeg_bin, "-y",
+        "-i", str(in_path),
+        "-vf", vf,
+        "-af", f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}",
+        "-c:v", "libx264",
+        "-r", f"{output_fps:.6f}",
+        "-pix_fmt", "yuv420p",
+        "-profile:v", "high",
+        "-level", "4.1",
+        "-preset", "veryfast",
+        "-crf", "20",
+        "-c:a", "aac",
+        "-b:a", "160k",
+        "-movflags", "+faststart",
         str(out_path),
     ]
     run_cmd(cmd)
@@ -722,12 +870,6 @@ def _validate_ending_clip(ending_path: Path, output_fps: float) -> float:
     if not ending_info.has_audio:
         raise RuntimeError("El ending debe incluir audio para concatenacion fluida")
 
-    fps_diff = abs(ending_info.fps - output_fps)
-    if fps_diff > 0.05:
-        raise RuntimeError(
-            f"FPS del ending ({ending_info.fps:.3f}) no coincide con FPS original ({output_fps:.3f})"
-        )
-
     return max(ending_info.duration, 0.01)
 
 
@@ -781,44 +923,43 @@ def render_variant(
     analyses: dict[Path, ClipAnalysis] | None = None,
     overlay_text_1: str = "",
     overlay_text_2: str = "",
+    centered_text: str = "",
     overlay_font: str = "Inter",
     overlay_effect: str = "fade",
     overlay_bold: bool = True,
+    text_mode: str = "two_lines",
 ) -> dict:
     segments = build_variant_segments(clips, style, seed=variant_index * 7919, analyses=analyses)
     if not segments:
         raise RuntimeError("Could not build segments for this variant")
 
-    segment_paths: list[Path] = []
-    durations: list[float] = []
-    for idx, segment in enumerate(segments, start=1):
-        path = work_dir / f"v{variant_index}_seg_{idx:02d}.mp4"
-        _extract_segment(segment, path, output_fps=output_fps)
-        segment_paths.append(path)
-        durations.append(segment.duration)
+    segment_paths: list[Path] = [work_dir / f"v{variant_index}_seg_{idx:02d}.mp4" for idx in range(1, len(segments) + 1)]
+    durations: list[float] = [seg.duration for seg in segments]
+
+    def _extract(args: tuple[Segment, Path]) -> None:
+        _extract_segment(args[0], args[1], output_fps=output_fps)
+
+    with ThreadPoolExecutor(max_workers=min(len(segments), 4)) as pool:
+        futures = {pool.submit(_extract, (seg, path)): i for i, (seg, path) in enumerate(zip(segments, segment_paths))}
+        for future in as_completed(futures):
+            future.result()  # propagate any extraction errors
 
     base_path = work_dir / f"v{variant_index}_base.mp4"
     final_duration = _compose_with_transitions(segment_paths, durations, style.transition, base_path)
 
-    overlayed = work_dir / f"v{variant_index}_overlayed.mp4"
-    _apply_text_overlays(
+    faded_main = work_dir / f"v{variant_index}_faded_main.mp4"
+    _apply_overlays_and_fade(
         in_path=base_path,
-        out_path=overlayed,
+        out_path=faded_main,
         duration=final_duration,
         output_fps=output_fps,
         overlay_text_1=overlay_text_1,
         overlay_text_2=overlay_text_2,
+        centered_text=centered_text,
         overlay_font=overlay_font,
         overlay_effect=overlay_effect,
         overlay_bold=overlay_bold,
-    )
-
-    faded_main = work_dir / f"v{variant_index}_faded_main.mp4"
-    _apply_tail_fade(
-        main_video=overlayed,
-        out_path=faded_main,
-        duration=final_duration,
-        output_fps=output_fps,
+        text_mode=text_mode,
     )
 
     ending_path = settings.ending_clip_path

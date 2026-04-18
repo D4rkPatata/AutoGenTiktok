@@ -13,7 +13,7 @@ Aplicacion web local para generar automaticamente videos verticales tipo TikTok 
 
 ### Flujo de alto nivel
 
-1. Usuario sube hasta 10 clips y opcionalmente musica.
+1. Usuario sube hasta 10 clips o usa una carpeta de Google Drive, y opcionalmente musica.
 2. Usuario configura versiones (1-10) y estilo.
 3. Frontend envia `multipart/form-data` a `POST /api/generate`.
 4. Backend valida archivos y guarda temporalmente.
@@ -68,9 +68,11 @@ Aplicacion web local para generar automaticamente videos verticales tipo TikTok 
 - `POST /api/generate`
   - `multipart/form-data`
   - Campos:
-    - `clips`: lista de videos (1-10, mp4/mov)
+    - `clips`: lista de videos (1-10, mp4/mov) cuando no se usa Drive
+    - `drive_folder_id`: ID de carpeta de Drive (opcional, alternativo a `clips`)
     - `versions`: entero (1-10)
     - `style`: `clean_fast | aggressive | smooth`
+    - `centered_text`: texto opcional centrado durante todo el video principal
     - `music_preset`: nombre de archivo preset (opcional)
     - `music_file`: archivo de audio (opcional)
   - Retorna:
@@ -79,6 +81,17 @@ Aplicacion web local para generar automaticamente videos verticales tipo TikTok 
 
 - `GET /api/download/{job_id}/{filename}`
   - Descarga MP4 final.
+
+- `POST /api/download-zip/{job_id}`
+  - Body JSON: `{ "filenames": ["video_01.mp4", ...] }`
+  - Si `filenames` esta vacio, descarga todos los MP4 del job.
+
+- `GET /api/tiktok/status`
+  - Estado de conexion contra variables TikTok.
+
+- `POST /api/tiktok/drafts/{job_id}`
+  - Body JSON: `{ "filenames": ["video_01.mp4", ...] }`
+  - Envia seleccion a endpoint de borradores de TikTok.
 
 ## 4) Estrategias del motor de generacion
 
@@ -135,7 +148,7 @@ Si no hay musica, se conserva audio del montaje base.
 
 - Sin login ni manejo multiusuario.
 - Sin timeline manual.
-- Sin integracion directa con TikTok.
+- Integracion TikTok en modo API (requiere token y open id validos).
 - Sin DB compleja.
 - Procesamiento sin cola (request bloqueante durante render).
 - Heuristicas de fragmentacion basadas en reglas (no vision IA avanzada).
@@ -215,6 +228,7 @@ Revisar `.env.example`:
 - resolucion/fps objetivo
 - limpieza de temporales
 - claves de captions IA
+- credenciales opcionales de Google Drive/TikTok
 
 ## 11) Notas operativas
 

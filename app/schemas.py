@@ -7,6 +7,7 @@ class GeneratedVideo(BaseModel):
     download_url: str
     overlay_text_1: str
     overlay_text_2: str
+    centered_text: str = ""
     caption: str
 
 
@@ -21,3 +22,29 @@ class GenerateResponse(BaseModel):
 class MusicPreset(BaseModel):
     name: str
     filename: str
+    trend_tag: str = "general"
+
+
+class ZipRequest(BaseModel):
+    filenames: list[str] = Field(default_factory=list)
+
+
+class TiktokDraftRequest(BaseModel):
+    filenames: list[str] = Field(default_factory=list)
+
+
+class TiktokConnectionStatus(BaseModel):
+    connected: bool
+    message: str
+
+
+class TiktokDraftResult(BaseModel):
+    filename: str
+    ok: bool
+    message: str
+
+
+class TiktokDraftResponse(BaseModel):
+    sent: int
+    attempted: int
+    results: list[TiktokDraftResult]

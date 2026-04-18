@@ -23,8 +23,8 @@ def ensure_base_dirs() -> None:
     music_presets_dir().mkdir(parents=True, exist_ok=True)
 
 
-def create_job_dirs() -> tuple[str, Path, Path, Path]:
-    job_id = uuid4().hex[:12]
+def create_job_dirs(job_id: str | None = None) -> tuple[str, Path, Path, Path]:
+    job_id = job_id or uuid4().hex[:12]
     root = jobs_dir() / job_id
     inputs = root / "inputs"
     outputs = root / "outputs"

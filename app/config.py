@@ -30,6 +30,25 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-1.5-flash"
 
+    # Optional: Google Drive source integration.
+    google_api_key: str | None = None
+    max_drive_input_clips: int = 10
+
+    # Optional: TikTok draft integration (manual token).
+    tiktok_access_token: str | None = None
+    tiktok_open_id: str | None = None
+    tiktok_draft_endpoint: str = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+
+    # TikTok OAuth2 (Login Kit).
+    tiktok_client_key: str | None = None
+    tiktok_client_secret: str | None = None
+    tiktok_redirect_uri: str | None = None
+
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    google_oauth_redirect_uri: str | None = None
+    session_secret: str = "change-me"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

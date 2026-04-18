@@ -16,29 +16,127 @@
     <div class="bg-shape bg-shape-1"></div>
     <div class="bg-shape bg-shape-2"></div>
 
+    <!-- Header -->
+    <header class="site-header">
+      <div class="site-header-inner">
+        <span class="site-logo">GenVideosAuto</span>
+        <div id="authArea" class="auth-area">
+          <div id="tiktokAuthArea"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Modal: subida local ──────────────────────────────────────────── -->
+    <div id="localModal" class="upload-modal" hidden>
+      <div class="upload-modal-backdrop" id="localModalBackdrop"></div>
+      <div class="upload-modal-card">
+        <div class="upload-modal-head">
+          <h3>Seleccionar videos desde tu PC</h3>
+          <button type="button" class="modal-close-btn" id="closeLocalModal">✕</button>
+        </div>
+
+        <div id="dropZone" class="drop-zone">
+          <div class="drop-zone-icon">🎬</div>
+          <p class="drop-zone-title">Arrastra y suelta aquí</p>
+          <p class="drop-zone-sub">MP4 o MOV · hasta 10 clips · máx 150 MB c/u</p>
+          <button type="button" class="btn-browse" id="browseFilesBtn">Explorar archivos</button>
+          <input id="clips" type="file" accept="video/mp4,video/quicktime,.mov" multiple />
+        </div>
+
+        <div id="localFilesList" class="modal-files-list"></div>
+
+        <div class="upload-modal-foot">
+          <span id="localFilesCount" class="hint">Sin archivos seleccionados</span>
+          <button type="button" class="btn-primary" id="confirmLocalBtn" disabled>Confirmar selección</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Modal: Drive browser ─────────────────────────────────────────── -->
+    <div id="driveModal" class="upload-modal" hidden>
+      <div class="upload-modal-backdrop" id="driveModalBackdrop"></div>
+      <div class="upload-modal-card">
+        <div class="upload-modal-head">
+          <h3>Seleccionar desde Google Drive</h3>
+          <button type="button" class="modal-close-btn" id="closeDriveModal">✕</button>
+        </div>
+
+        <!-- Barra de usuario logueado (se muestra solo cuando hay sesión) -->
+        <div id="driveUserBar" class="drive-user-bar" hidden></div>
+
+        <!-- Estado: no logueado -->
+        <div id="driveLoginPrompt" class="drive-login-prompt" hidden>
+          <div class="drive-login-icon">☁️</div>
+          <p class="drive-login-title">Inicia sesión para acceder a Drive</p>
+          <p class="drive-login-sub">Podrás navegar y seleccionar tus videos directamente desde Google Drive.</p>
+          <a href="/api/auth/login" class="btn-google">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+            Iniciar sesión con Google
+          </a>
+        </div>
+
+        <!-- Estado: logueado — browser -->
+        <div id="driveBrowserContent" hidden>
+          <div id="driveBreadcrumb" class="drive-breadcrumb"></div>
+          <div id="driveContentsList" class="drive-contents-list">
+            <div class="drive-loading">Cargando...</div>
+          </div>
+        </div>
+
+        <div class="upload-modal-foot">
+          <span id="driveSelectedCount" class="hint">0 videos seleccionados</span>
+          <button type="button" class="btn-primary" id="confirmDriveBtn" disabled>Cargar seleccionados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Contenido principal ──────────────────────────────────────────── -->
     <main class="container">
-      <header class="hero"> 
+      <header class="hero">
         <h1>Generador Automático de Videos</h1>
-        <p>
-          Sube clips, agrega música y genera múltiples versiones verticales en MP4 con caption automático.
-        </p>
+        <p>Sube clips, agrega música y genera múltiples versiones verticales en MP4 con caption automático.</p>
       </header>
 
+      <!-- 1. Videos -->
       <section class="card">
-        <h2>1. Subida de videos</h2>
-        <p>Hasta 10 clips en MP4/MOV.</p>
-        <input id="clips" type="file" accept="video/mp4,video/quicktime,.mov" multiple />
-        <ul id="clipList" class="file-list"></ul>
+        <h2>1. Videos de entrada</h2>
+        <div class="source-btns">
+          <button type="button" class="source-btn" id="openLocalBtn">
+            <span class="source-btn-icon">🖥️</span>
+            <span class="source-btn-body">
+              <strong>Desde mi PC</strong>
+              <small>MP4 o MOV · hasta 10 clips</small>
+            </span>
+          </button>
+          <button type="button" class="source-btn" id="openDriveBtn">
+            <span class="source-btn-icon">☁️</span>
+            <span class="source-btn-body">
+              <strong>Google Drive</strong>
+              <small>Navega y elige archivos</small>
+            </span>
+          </button>
+        </div>
+
+        <!-- Archivos seleccionados -->
+        <div id="selectedFilesArea" class="selected-files-area" hidden>
+          <div class="selected-files-header">
+            <span id="selectedFilesLabel" class="selected-files-label"></span>
+            <button type="button" class="btn-text-sm" id="changeFilesBtn">Cambiar</button>
+          </div>
+          <ul id="selectedFilesList" class="selected-files-list"></ul>
+        </div>
+
+        <!-- Error de archivos -->
+        <div id="fileErrorBanner" class="error-banner" hidden></div>
       </section>
 
+      <!-- 2. Música -->
       <section class="card">
         <h2>2. Música</h2>
         <div class="grid-2">
           <div>
             <label for="musicPreset">Elegir preset</label>
-            <select id="musicPreset">
-              <option value="">Sin preset</option>
-            </select>
+            <select id="musicPreset"><option value="">Sin preset</option></select>
           </div>
           <div>
             <label for="musicFile">O subir música (MP3/WAV/M4A/AAC)</label>
@@ -47,6 +145,7 @@
         </div>
       </section>
 
+      <!-- 3. Configuración -->
       <section class="card">
         <h2>3. Configuración</h2>
         <div class="grid-2">
@@ -55,7 +154,7 @@
             <input id="versions" type="number" min="1" max="10" value="3" />
           </div>
           <div>
-            <label for="style">Estilo</label>
+            <label for="style">Estilo de corte</label>
             <select id="style">
               <option value="clean_fast">Clean Fast</option>
               <option value="aggressive">Aggressive</option>
@@ -65,9 +164,29 @@
         </div>
       </section>
 
+      <!-- 4. Texto -->
       <section class="card">
         <h2>4. Texto</h2>
-        <div class="style-config-grid">
+
+        <div class="toggle-row">
+          <span class="toggle-label">Modo de texto:</span>
+          <div class="segmented-control" id="textModeControl">
+            <button type="button" class="seg-btn active" data-value="two_lines">2 frases</button>
+            <button type="button" class="seg-btn" data-value="one_big">Frase grande</button>
+          </div>
+          <span class="hint" id="textModeHint">Dos frases en distintas posiciones del video</span>
+        </div>
+
+        <div class="toggle-row" style="margin-top:0.75rem">
+          <span class="toggle-label">Narrador TTS:</span>
+          <label class="switch-label">
+            <input type="checkbox" id="narratorToggle" />
+            <span class="switch-track"></span>
+            <span class="switch-text">Activar narrador (lee el texto en voz alta)</span>
+          </label>
+        </div>
+
+        <div class="style-config-grid" style="margin-top:1rem">
           <div class="style-controls">
             <div class="multi-select" id="fontSelectRoot">
               <label class="multi-select-label">Fuentes</label>
@@ -85,12 +204,12 @@
             </div>
 
             <div class="multi-select" id="effectSelectRoot">
-              <label class="multi-select-label">Efectos</label>
+              <label class="multi-select-label">Efectos de texto</label>
               <div class="multi-select-trigger" id="effectTrigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">Haz clic para elegir</div>
               <div class="multi-select-menu" id="effectMenu" hidden>
                 <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Seleccion de efectos">
                   <div class="menu-actions">
-                    <button type="button" id="effectSelectAll">Seleccionar todas</button>
+                    <button type="button" id="effectSelectAll">Seleccionar todos</button>
                     <button type="button" id="effectClear">Limpiar</button>
                     <button type="button" id="effectClose">Cerrar</button>
                   </div>
@@ -102,25 +221,22 @@
 
           <div class="preview-card">
             <p class="preview-title">Vista previa</p>
-            <p class="preview-caption">Asi se vera el texto principal</p>
+            <p class="preview-caption">Así se verá el texto</p>
             <div class="preview-stage">
               <p id="stylePreviewText">¡A LA VENTA!</p>
             </div>
           </div>
         </div>
-        <p class="hint">Selecciona una o varias fuentes y efectos. Se aplicara una combinacion por video.</p>
+        <p class="hint" style="margin-top:.6rem">Se aplicará una combinación de fuente + efecto por video.</p>
       </section>
 
+      <!-- 5. Contexto -->
       <section class="card">
         <h2>5. Contexto</h2>
-        <p>Describe rapidamente de que trata el video para guiar caption y textos en pantalla.</p>
-        <div class="prompt-wrap">
-          <label for="promptContext">Contexto del video (guia para caption y textos en pantalla)</label>
-          <textarea
-            id="promptContext"
-            rows="3"
-            placeholder="Ejemplo: video sobre tips de productividad para creadores, tono motivador y cierre con CTA"
-          ></textarea>
+        <p>Describe el video. Con esto se generan automáticamente los textos en pantalla y el caption según el modo elegido arriba.</p>
+        <div class="prompt-wrap" style="margin-top:.6rem">
+          <label for="promptContext">Contexto del video</label>
+          <textarea id="promptContext" rows="3" placeholder="Ejemplo: video de producto para ropa deportiva, tono energético con CTA al final"></textarea>
         </div>
       </section>
 
@@ -129,8 +245,29 @@
         <p id="statusText"></p>
       </section>
 
+      <!-- Progress bar -->
+      <div id="progressSection" hidden>
+        <div class="progress-header">
+          <span id="progressStep">Iniciando...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- 7. Resultados -->
       <section class="card" id="resultsSection">
-        <h2>7. Resultados</h2>
+        <div class="results-header">
+          <h2>7. Resultados</h2>
+          <div class="results-top-actions">
+            <button type="button" id="downloadZipBtn" disabled>Descargar todos en ZIP</button>
+          </div>
+        </div>
+        <div class="results-actions">
+          <button type="button" id="sendTiktokBtn" disabled>Enviar a TikTok Drafts</button>
+          <p id="tiktokStatus" class="hint"></p>
+        </div>
         <div id="results" class="results"></div>
       </section>
     </main>
